@@ -31,6 +31,7 @@
 * Modification area - M3
 * Nbr               Date      User id     Description
 * WKF009            20230927  KVERCO      Supplier invoice approval run
+* WKF009            20240305  KVERCO      Update to workaround 33333 status error on header when all lines are 33334
 */
 
 /**
@@ -65,9 +66,9 @@ public class ProcessApproval extends ExtendM3Transaction {
   }
 
   /**
-   * setupData  - write to EXTJOB
-   *
-   */
+	 * setupData  - write to EXTJOB
+	 *
+	 */
   private void setupData(String referenceId) {
     String data = "";
     
