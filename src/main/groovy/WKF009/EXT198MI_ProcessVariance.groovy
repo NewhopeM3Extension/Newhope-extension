@@ -37,6 +37,7 @@
 * Modification area - M3
 * Nbr               Date      User id     Description
 * WKF009            20230927  KVERCO      Supplier invoice variance recoding
+* WKF009            20240308  KVERCO      Set accounting date according to open period + improve logging and error codes
 */
  
 /**
@@ -115,7 +116,7 @@ public class ProcessVariance extends ExtendM3Transaction {
       String vtxt = FGLEDG.get("EGVTXT").toString().trim();
       
       boolean isRecoded = false;
-      if (vtxt.length() > 40) {
+      if (vtxt.length() >= 40) {
         String pos40 = vtxt.substring(39,40);
         if (pos40.equals("X")) {
           isRecoded = true;
@@ -123,15 +124,20 @@ public class ProcessVariance extends ExtendM3Transaction {
       }
       if (isRecoded) {
         PROC = "";
-        updateProcessFlag(divi, yea4, jrno, jsno, "2");
+        updateProcessFlag(divi, yea4, jrno, jsno, "8");
+        logger.debug("FGLEDG entry is a recode line. Division -" + divi + ", year-" + yea4 + ", journal-" + jrno + ", journal seq-" + jsno);
       } else {
         recodingVariance(FGLEDG);
       }
+    } else {
+      PROC = "";
+      updateProcessFlag(divi, yea4, jrno, jsno, "7");
+      logger.debug("No FGLEDG entry found for division-" + divi + ", year-" + yea4 + ", journal-" + jrno + ", journal seq-" + jsno);
     }
   }
   
   /**
-   * recodeVariance - recording the variance through APS450MI
+   * recodingVariance - recording the variance through APS450MI
    *
   */
   def recodingVariance(DBContainer FGLEDG) {  
@@ -181,7 +187,8 @@ public class ProcessVariance extends ExtendM3Transaction {
     
     if (!queryFPLEDG.read(FPLEDG)) {
       PROC = "";
-      updateProcessFlag(divi, yea4, jrno, jsno, "2");
+      updateProcessFlag(divi, yea4, jrno, jsno, "7");
+      logger.debug("No FPLEDG entry found for division-" + divi + ", year-" + yea4 + ", journal-" + jrno + ", journal seq-" + jsno);
       return;
     }
     
@@ -193,7 +200,8 @@ public class ProcessVariance extends ExtendM3Transaction {
     
     if (sino.isEmpty()) {
       PROC = "";
-      updateProcessFlag(divi, yea4, jrno, jsno, "2");
+      updateProcessFlag(divi, yea4, jrno, jsno, "7");
+      logger.debug("No FPLEDG TRCD=40 details found for division-" + divi + ", year-" + yea4 + ", journal-" + jrno + ", journal seq-" + jsno);
       return;
     }
     
@@ -239,6 +247,7 @@ public class ProcessVariance extends ExtendM3Transaction {
      if (puno.isEmpty() && pnli.isEmpty()) {
       PROC = "";
       updateProcessFlag(divi, yea4, jrno, jsno, "2");
+      logger.debug("No FGINAE entry found for division-" + divi + ", supplier-" + suno + ", invoice-" + sino);
       return;
       }
     }
@@ -276,7 +285,7 @@ public class ProcessVariance extends ExtendM3Transaction {
       if (!queryMPLINE.read(MPLINE)) {
         PROC = "";
         updateProcessFlag(divi, yea4, jrno, jsno, "2");
-        logger.debug("PO Line not found in MPLINE - " + puno + "/" + pnli + "/" + pnls);
+        logger.debug("PO Line not found in MPLINE - " + puno + "/" + pnli + "/" + pnls + " for division-" + divi + ", supplier-" + suno + ", invoice-" + sino);
         return;
       } 
       String potcMPLINE = MPLINE.get("IBPOTC").toString().trim();
@@ -325,7 +334,7 @@ public class ProcessVariance extends ExtendM3Transaction {
           if (!queryMITMAS.read(MITMAS)) {
             PROC = "";
             updateProcessFlag(divi, yea4, jrno, jsno, "2");
-            logger.debug("MITMAS not found for item" + itnoMPLINE.trim());
+            logger.debug("MITMAS not found for item" + itnoMPLINE.trim() + " for division-" + divi + ", supplier-" + suno + ", invoice-" + sino);
             return;
           } 
           else {
@@ -345,7 +354,7 @@ public class ProcessVariance extends ExtendM3Transaction {
             else {
               PROC = "";
               updateProcessFlag(divi, yea4, jrno, jsno, "2");
-              logger.debug("Item does not match criteria for account simulation - " + itnoMPLINE.trim());
+              logger.debug("Item does not match criteria for account simulation - " + itnoMPLINE.trim() + " for PO line-"  + puno + "/" + pnli + "/" + pnls + " and division-" + divi + ", supplier-" + suno + ", invoice-" + sino);
               return;
             }
           }
@@ -365,7 +374,7 @@ public class ProcessVariance extends ExtendM3Transaction {
       logger.debug("ait1CACCST=" + ait1CACCST + " ait2CACCST=" + ait2CACCST);
     }
 
-    String inbn = createAPS450MIHeader(divi, yea4, vser, vono, acdt);
+    String inbn = createAPS450MIHeader(divi, yea4, vser, vono, getAccountingDate(divi,acdt));
     if (inbn != null && !inbn.isEmpty()) {
       if (vtxt.length() == 40) {
         vtxt = vtxt.substring(0, 38) + "X";
@@ -376,6 +385,10 @@ public class ProcessVariance extends ExtendM3Transaction {
       createAPS450MILine(divi, inbn, acam, vtcd, acqt, ait1CACCST, ait2CACCST, ait3CACCST, ait4CACCST, ait5CACCST, ait6CACCST, ait7CACCST, vtxt);
       validateAPS455MIValidByBatchNo(divi, inbn);
       updateProcessFlag(divi, yea4, jrno, jsno, "1");
+      logger.debug("Successful recode for PO line-"  + puno + "/" + pnli + "/" + pnls + " and division-" + divi + ", supplier-" + suno + ", invoice-" + sino);
+    } else {
+      updateProcessFlag(divi, yea4, jrno, jsno, "2");
+      logger.debug("APS450MI AddHeadRecode failed for PO line-"  + puno + "/" + pnli + "/" + pnls + " and division-" + divi + ", supplier-" + suno + ", invoice-" + sino);
     }
   }
   
@@ -759,5 +772,33 @@ public class ProcessVariance extends ExtendM3Transaction {
     
     def  accounts = [ "AIT1": AIT1, "AIT2":AIT2, "AIT3":AIT3, "AIT4":AIT4, "AIT5":AIT5, "AIT6":AIT6, "AIT7":AIT7];
     return accounts;
+  }
+  /*
+   * getAccountingDate - check whether Accounting Date is valid
+   *
+  */
+  def String getAccountingDate(String divi, String acdt) {
+    
+    DBAction queryCSYTAB = database.table("CSYTAB").index("00").selection("CTPARM").build();
+    DBContainer CSYTAB = queryCSYTAB.getContainer();
+    CSYTAB.set("CTCONO", XXCONO);
+    CSYTAB.set("CTDIVI", divi);   
+    CSYTAB.set("CTSTCO", "FFNC");   
+    CSYTAB.set("CTSTKY", "AP10800");   
+    if (queryCSYTAB.read(CSYTAB)) {
+      
+      String parm = CSYTAB.get("CTPARM")
+      String frdt = parm.substring(13,21);
+      String todt = parm.substring(21,29);
+      logger.debug("From Date=" + frdt);
+      logger.debug("To Date=" + todt);
+      
+      if ((acdt.toInteger() > todt.toInteger()) || (acdt.toInteger() < frdt.toInteger())) {
+        return frdt;
+        logger.debug("acdt=" + frdt);
+      }
+    }
+    logger.debug("acdt=" + acdt);
+    return acdt;
   }
 }
