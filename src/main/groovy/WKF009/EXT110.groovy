@@ -36,6 +36,7 @@
  *Modification area - M3
  *Nbr               Date       User id     Description
  *WKF009            20230609   XWZHAO      Supplier invoice approval run
+ *WKF009            20240305   KVERCO      Approve invoices with status 33333 if all lines are on 33334 (workaround for M3 issue)
  *  
  */
  
@@ -54,6 +55,7 @@ public class EXT110 extends ExtendM3Batch {
   private int XXCONO;
   private int currentDate;
   private int currentTime;
+  private String accountStatus;
   
   boolean allStatusesOk;
   
@@ -71,6 +73,7 @@ public class EXT110 extends ExtendM3Batch {
   
   public void main() {
     XXCONO= program.LDAZD.CONO;
+    accountStatus = "";
     
     if (!batch.getReferenceId().isPresent()) {
       logger.debug("Job data for job ${batch.getJobId()} is missing");
@@ -157,8 +160,34 @@ public class EXT110 extends ExtendM3Batch {
         def map = [DIVI: divi, SUNO: suno, SINO: sino, INYR: inyr];
         lstToBeApproved.add(map);
       }
+      // Workaround for M3 error where all lines are set to 33334 but header is stuck on 33333
+      if (ins0 == "33333") {
+        DBAction queryFGINLI = database.table("FGINLI").index("10").selection("F5INS5", "F5INS2","F5INS3","F5INS4","F5INS5").build();
+        DBContainer FGINLI = queryFGINLI.getContainer();
+        FGINLI.set("F5CONO", XXCONO);
+        FGINLI.set("F5DIVI", divi);
+        FGINLI.set("F5SUNO", suno);
+        FGINLI.set("F5SINO", sino);
+        FGINLI.set("F5INYR", inyr.toInteger());
+        FGINLI.set("F5INS5", "3");
+        queryFGINLI.readAll(FGINLI, 6, 1, lstFGINLI);
+         //If no lines are found waiting for account correction
+        if (accountStatus.isBlank()) {
+          def map = [DIVI: divi, SUNO: suno, SINO: sino, INYR: inyr];
+          lstToBeApproved.add(map);
+        }
+      }
     }
     
   }
+  
+  /*
+   * lstFGINLI - Callback function to return FGINLI records
+   *
+  */
+  Closure<?> lstFGINLI = { DBContainer FGINLI ->
+      accountStatus = FGINLI.get("F5INS5").toString().trim();
+  }
+  
   
 }
