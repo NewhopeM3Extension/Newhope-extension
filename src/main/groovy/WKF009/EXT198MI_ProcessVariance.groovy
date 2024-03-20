@@ -140,7 +140,7 @@ public class ProcessVariance extends ExtendM3Transaction {
    * recodingVariance - recording the variance through APS450MI
    *
   */
-  def recodingVariance(DBContainer FGLEDG) {  
+  void recodingVariance(DBContainer FGLEDG) {  
     String jrnoFPLEDG = "";
     String jsnoFPLEDG = "";
     
@@ -164,7 +164,7 @@ public class ProcessVariance extends ExtendM3Transaction {
     String acdt = FGLEDG.get("EGACDT").toString().trim();
     String vtxt = FGLEDG.get("EGVTXT").toString().trim();
     
-    def params = ["DIVI":divi, "YEA4":yea4, "VSER":"", "VONO":vono];
+    Map<String, String> params = ["DIVI":divi, "YEA4":yea4, "VSER":"", "VONO":vono];
       
     Closure<?> GLS200MIcallback = {
       Map<String, String> response ->
@@ -407,13 +407,13 @@ public class ProcessVariance extends ExtendM3Transaction {
    * createAPS450MIHeader - executing APS450MI.AddHeadRecode
    *
   */
-  def String createAPS450MIHeader(String divi, String yea4, String vser, String vono, String acdt) {
+  String createAPS450MIHeader(String divi, String yea4, String vser, String vono, String acdt) {
     logger.debug("Call APS450MI.AddHeadRecode...");
     
     String inbn = "";
-    def params = [ "DIVI": divi, "YEA4": yea4, "VSER": vser, "VONO": vono, "ACDT": acdt]; 
+    Map<String, String> params = [ "DIVI": divi, "YEA4": yea4, "VSER": vser, "VONO": vono, "ACDT": acdt]; 
     
-    def callback = {
+    Closure<?> callback = {
       Map<String, String> response ->
       inbn = response.INBN;
       logger.debug("INBN=" + inbn);
@@ -427,12 +427,12 @@ public class ProcessVariance extends ExtendM3Transaction {
    * createAPS450MILine - executing APS450MI.AddLineRecode
    *
   */
-  def createAPS450MILine(String divi, String inbn, String nlam, String vtcd, String acqt, String ait1, String ait2, String ait3, String ait4, String ait5, String ait6, String ait7, String vtxt) {
+  void createAPS450MILine(String divi, String inbn, String nlam, String vtcd, String acqt, String ait1, String ait2, String ait3, String ait4, String ait5, String ait6, String ait7, String vtxt) {
     logger.debug("Call APS450MI.AddLineRecode...");
     
     
-    def params = [ "DIVI": divi, "INBN": inbn, "NLAM": nlam, "VTCD": vtcd, "ACQT": acqt, "AIT1": ait1, "AIT2": ait2, "AIT3": ait3, "AIT4": ait4, "AIT5": ait5, "AIT6": ait6, "AIT7": ait7, "VTXT": vtxt]; 
-    def callback = {
+    Map<String, String> params = [ "DIVI": divi, "INBN": inbn, "NLAM": nlam, "VTCD": vtcd, "ACQT": acqt, "AIT1": ait1, "AIT2": ait2, "AIT3": ait3, "AIT4": ait4, "AIT5": ait5, "AIT6": ait6, "AIT7": ait7, "VTXT": vtxt]; 
+    Closure<?> callback = {
     Map<String, String> response ->
       
     }
@@ -443,7 +443,7 @@ public class ProcessVariance extends ExtendM3Transaction {
    * formatFixedLength
    *
   */  
-  def String formatFixedLen(String str, int len) {
+  String formatFixedLen(String str, int len) {
     String strTemp = str;
     while (strTemp.length() < len) {
       strTemp += " ";
@@ -455,10 +455,10 @@ public class ProcessVariance extends ExtendM3Transaction {
    * validateAPS455MIValidByBatchNo - executing APS455MI.ValidByBatchNo
    *
   */
-  def validateAPS455MIValidByBatchNo(String divi, String inbn) {
+  void validateAPS455MIValidByBatchNo(String divi, String inbn) {
     logger.debug("Call APS455MI.ValidByBatchNo...");
-    def params = [ "DIVI": divi, "INBN": inbn]; 
-    def callback = {
+    Map<String, String> params = [ "DIVI": divi, "INBN": inbn]; 
+    Closure<?> callback = {
     Map<String, String> response ->
     
     }
@@ -468,7 +468,7 @@ public class ProcessVariance extends ExtendM3Transaction {
    * updateProcessFlag - update PROC in EXTVAR
    *
   */
-  def updateProcessFlag(String divi, String yea4, String jrno, String jsno, String proc) {
+  void updateProcessFlag(String divi, String yea4, String jrno, String jsno, String proc) {
     
 	  DBAction actionEXTVAR = database.table("EXTVAR").index("00").build();
     DBContainer EXTVAR = actionEXTVAR.getContainer();
@@ -498,30 +498,30 @@ public class ProcessVariance extends ExtendM3Transaction {
    * getInventoryAccounts - Get Accounting String for Inventory Item
    *
   */
-  def Map<String, String> getInventoryAccounts(String Company, String Division, String FromDate, String OrderNumber, String OrderLineNumber, String PurchaseOrderLineSubnumber) {
-    def endpoint = "M3/ips/service/CRS399"
-    def headers = ["Accept": "application/xml", "Content-Type": "application/xml"]
-    def queryParameters = (Map)null
+  Map<String, String> getInventoryAccounts(String Company, String Division, String FromDate, String OrderNumber, String OrderLineNumber, String PurchaseOrderLineSubnumber) {
+    String endpoint = "M3/ips/service/CRS399"
+    Map<String, String> headers = ["Accept": "application/xml", "Content-Type": "application/xml"]
+    Map<String, String> queryParameters = (Map)null
     String SOAPBody = "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?><SOAP-ENV:Envelope xmlns:SOAP-ENV=\"http://schemas.xmlsoap.org/soap/envelope/\" xmlns:cred=\"http://lawson.com/ws/credentials\" xmlns:get=\"http://schemas.infor.com/ips/CRS399/GetPP10910\">  <SOAP-ENV:Header>    <cred:lws>      <cred:company>${Company}</cred:company>      <cred:division></cred:division>    </cred:lws>  </SOAP-ENV:Header>  <SOAP-ENV:Body>    <get:GetPP10910>      <get:CRS399>        <get:Division>${Division}</get:Division>        <get:FromDate>${FromDate}</get:FromDate>        <get:OrderNumber>${OrderNumber}</get:OrderNumber>        <get:OrderLineNumber>${OrderLineNumber}</get:OrderLineNumber>        <get:PurchaseOrderLineSubnumber>${PurchaseOrderLineSubnumber}</get:PurchaseOrderLineSubnumber>      </get:CRS399>    </get:GetPP10910>  </SOAP-ENV:Body></SOAP-ENV:Envelope>"
     IonResponse response = ion.post(endpoint, headers, queryParameters, SOAPBody)
     if (response.getError()) {
       logger.debug("Failed calling ION API, detailed error message: ${response.getErrorMessage()}")
-      def  accounts = [ "AIT1": "", "AIT2":"", "AIT3":"", "AIT4":"", "AIT5":"", "AIT6":"", "AIT7":""];
+      Map<String, String> accounts = [ "AIT1": "", "AIT2":"", "AIT3":"", "AIT4":"", "AIT5":"", "AIT6":"", "AIT7":""];
       return accounts;  
     }
     if (response.getStatusCode() != 200) {
       logger.debug("Expected status 200 but got ${response.getStatusCode()} instead")
-      def  accounts = [ "AIT1": "", "AIT2":"", "AIT3":"", "AIT4":"", "AIT5":"", "AIT6":"", "AIT7":""];
+      Map<String, String> accounts = [ "AIT1": "", "AIT2":"", "AIT3":"", "AIT4":"", "AIT5":"", "AIT6":"", "AIT7":""];
       return accounts;  
     }
 
     String content = response.getContent()
     if (content == null) {
       logger.debug("Expected content from the request but got no content")
-      def  accounts = [ "AIT1": "", "AIT2":"", "AIT3":"", "AIT4":"", "AIT5":"", "AIT6":"", "AIT7":""];
+      Map<String, String>  accounts = [ "AIT1": "", "AIT2":"", "AIT3":"", "AIT4":"", "AIT5":"", "AIT6":"", "AIT7":""];
       return accounts;  
     }
-    def responseContent =  new XmlSlurper().parseText(content) ;
+    String responseContent =  new XmlSlurper().parseText(content) ;
 
     String AIT1 = "";
     String AIT2 = "";
@@ -531,7 +531,7 @@ public class ProcessVariance extends ExtendM3Transaction {
     String AIT6 = "";
     String AIT7 = "";
     
-      def responseBody = content.toString();
+      String responseBody = content.toString();
       int indexStart = responseBody.indexOf("AccountingDimension1>");
       int indexEnd = 0;
       if (indexStart !=-1){
@@ -584,7 +584,7 @@ public class ProcessVariance extends ExtendM3Transaction {
 
     logger.debug("reponseContent=" + responseContent);
     
-    def  accounts = [ "AIT1": AIT1, "AIT2":AIT2, "AIT3":AIT3, "AIT4":AIT4, "AIT5":AIT5, "AIT6":AIT6, "AIT7":AIT7];
+    Map<String, String> accounts = [ "AIT1": AIT1, "AIT2":AIT2, "AIT3":AIT3, "AIT4":AIT4, "AIT5":AIT5, "AIT6":AIT6, "AIT7":AIT7];
     return accounts;  
   }
   
@@ -592,29 +592,29 @@ public class ProcessVariance extends ExtendM3Transaction {
    * getWorkOrderAccounts - Get Accounting String for Work Order lines
    *
   */
-  def Map<String, String> getWorkOrderAccounts(String Company, String Division, String FromDate, String ItemProductNumber, String ManufacturingOrderNumber, String SequenceNumber) {
-    def endpoint = "M3/ips/service/CRS399"
-    def headers = ["Accept": "application/xml", "Content-Type": "application/xml"]
-    def queryParameters = (Map)null
+  Map<String, String> getWorkOrderAccounts(String Company, String Division, String FromDate, String ItemProductNumber, String ManufacturingOrderNumber, String SequenceNumber) {
+    String endpoint = "M3/ips/service/CRS399"
+    Map<String, String> headers = ["Accept": "application/xml", "Content-Type": "application/xml"]
+    Map<String, String> queryParameters = (Map)null
     String SOAPBody = "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?><SOAP-ENV:Envelope xmlns:SOAP-ENV=\"http://schemas.xmlsoap.org/soap/envelope/\" xmlns:cred=\"http://lawson.com/ws/credentials\" xmlns:get=\"http://schemas.infor.com/ips/CRS399/GetMO10912\">  <SOAP-ENV:Header>    <cred:lws>      <cred:company>${Company}</cred:company>      <cred:division></cred:division>    </cred:lws>  </SOAP-ENV:Header>  <SOAP-ENV:Body>    <get:GetMO10912>      <get:CRS399>        <get:Division>${Division}</get:Division>        <get:FromDate>${FromDate}</get:FromDate>        <get:ItemProductNumber>${ItemProductNumber}</get:ItemProductNumber>        <get:SequenceNumber>${SequenceNumber}</get:SequenceNumber>        <get:ManufacturingOrderNumber>${ManufacturingOrderNumber}</get:ManufacturingOrderNumber>      </get:CRS399>    </get:GetMO10912>  </SOAP-ENV:Body></SOAP-ENV:Envelope>"
     IonResponse response = ion.post(endpoint, headers, queryParameters, SOAPBody)
     if (response.getError()) {
       logger.debug("Failed calling ION API, detailed error message: ${response.getErrorMessage()}")
-      def  accounts = [ "AIT1": "", "AIT2":"", "AIT3":"", "AIT4":"", "AIT5":"", "AIT6":"", "AIT7":""];
+      Map<String, String> accounts = [ "AIT1": "", "AIT2":"", "AIT3":"", "AIT4":"", "AIT5":"", "AIT6":"", "AIT7":""];
       return accounts;  
     }
     if (response.getStatusCode() != 200) {
       logger.debug("Expected status 200 but got ${response.getStatusCode()} instead")
-      def  accounts = [ "AIT1": "", "AIT2":"", "AIT3":"", "AIT4":"", "AIT5":"", "AIT6":"", "AIT7":""];
+      Map<String, String> accounts = [ "AIT1": "", "AIT2":"", "AIT3":"", "AIT4":"", "AIT5":"", "AIT6":"", "AIT7":""];
       return accounts;  
     }
     String content = response.getContent()
     if (content == null) {
       logger.debug("Expected content from the request but got no content")
-      def  accounts = [ "AIT1": "", "AIT2":"", "AIT3":"", "AIT4":"", "AIT5":"", "AIT6":"", "AIT7":""];
+      Map<String, String> accounts = [ "AIT1": "", "AIT2":"", "AIT3":"", "AIT4":"", "AIT5":"", "AIT6":"", "AIT7":""];
       return accounts;  
     }
-    def responseContent =  new XmlSlurper().parseText(content) ;
+    String responseContent =  new XmlSlurper().parseText(content) ;
 
     String AIT1 = "";
     String AIT2 = "";
@@ -624,7 +624,7 @@ public class ProcessVariance extends ExtendM3Transaction {
     String AIT6 = "";
     String AIT7 = "";
     
-      def responseBody = content.toString();
+      String responseBody = content.toString();
       int indexStart = responseBody.indexOf("AccountingDimension1>");
       int indexEnd = 0;
       if (indexStart !=-1){
@@ -677,7 +677,7 @@ public class ProcessVariance extends ExtendM3Transaction {
 
     logger.debug("reponseContent=" + responseContent);
     
-    def  accounts = [ "AIT1": AIT1, "AIT2":AIT2, "AIT3":AIT3, "AIT4":AIT4, "AIT5":AIT5, "AIT6":AIT6, "AIT7":AIT7];
+    Map<String, String>  accounts = [ "AIT1": AIT1, "AIT2":AIT2, "AIT3":AIT3, "AIT4":AIT4, "AIT5":AIT5, "AIT6":AIT6, "AIT7":AIT7];
     return accounts;
   }
   
@@ -685,29 +685,29 @@ public class ProcessVariance extends ExtendM3Transaction {
    * getRepSubWorkOrderAccounts - Get Accounting String for Repair or Subcontract Work Order lines
    *
   */
-  def Map<String, String> getRepSubWorkOrderAccounts(String Company, String Division, String FromDate, String ItemProductNumber, String ManufacturingOrderNumber, String OperationNumber, String Facility, String Rework) {
-    def endpoint = "M3/ips/service/CRS399"
-    def headers = ["Accept": "application/xml", "Content-Type": "application/xml"]
-    def queryParameters = (Map)null
+  Map<String, String> getRepSubWorkOrderAccounts(String Company, String Division, String FromDate, String ItemProductNumber, String ManufacturingOrderNumber, String OperationNumber, String Facility, String Rework) {
+    String endpoint = "M3/ips/service/CRS399"
+    Map<String, String> headers = ["Accept": "application/xml", "Content-Type": "application/xml"]
+    Map<String, String> queryParameters = (Map)null
     String SOAPBody = "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?><SOAP-ENV:Envelope xmlns:SOAP-ENV=\"http://schemas.xmlsoap.org/soap/envelope/\" xmlns:cred=\"http://lawson.com/ws/credentials\" xmlns:get=\"http://schemas.infor.com/ips/CRS399/GetMO20920\">  <SOAP-ENV:Header>    <cred:lws>      <cred:company>${Company}</cred:company>      <cred:division></cred:division>    </cred:lws>  </SOAP-ENV:Header>  <SOAP-ENV:Body>    <get:GetMO20920>      <get:CRS399>        <get:Division>${Division}</get:Division>        <get:FromDate>${FromDate}</get:FromDate>        <get:ItemProductNumber>${ItemProductNumber}</get:ItemProductNumber>        <get:ManufacturingOrderNumber>${ManufacturingOrderNumber}</get:ManufacturingOrderNumber>        <get:OperationNumber>${OperationNumber}</get:OperationNumber>        <get:Facility>${Facility}</get:Facility>        <get:Rework>${Rework}</get:Rework>      </get:CRS399>    </get:GetMO20920>  </SOAP-ENV:Body></SOAP-ENV:Envelope>"
     IonResponse response = ion.post(endpoint, headers, queryParameters, SOAPBody)
     if (response.getError()) {
       logger.debug("Failed calling ION API, detailed error message: ${response.getErrorMessage()}")
-      def  accounts = [ "AIT1": "", "AIT2":"", "AIT3":"", "AIT4":"", "AIT5":"", "AIT6":"", "AIT7":""];
+      Map<String, String>  accounts = [ "AIT1": "", "AIT2":"", "AIT3":"", "AIT4":"", "AIT5":"", "AIT6":"", "AIT7":""];
       return accounts;  
     }
     if (response.getStatusCode() != 200) {
       logger.debug("Expected status 200 but got ${response.getStatusCode()} instead")
-      def  accounts = [ "AIT1": "", "AIT2":"", "AIT3":"", "AIT4":"", "AIT5":"", "AIT6":"", "AIT7":""];
+      Map<String, String>  accounts = [ "AIT1": "", "AIT2":"", "AIT3":"", "AIT4":"", "AIT5":"", "AIT6":"", "AIT7":""];
       return accounts;  
     }
     String content = response.getContent()
     if (content == null) {
       logger.debug("Expected content from the request but got no content")
-      def  accounts = [ "AIT1": "", "AIT2":"", "AIT3":"", "AIT4":"", "AIT5":"", "AIT6":"", "AIT7":""];
+      Map<String, String>  accounts = [ "AIT1": "", "AIT2":"", "AIT3":"", "AIT4":"", "AIT5":"", "AIT6":"", "AIT7":""];
       return accounts;  
     }
-    def responseContent =  new XmlSlurper().parseText(content) ;
+    String responseContent =  new XmlSlurper().parseText(content) ;
 
     String AIT1 = "";
     String AIT2 = "";
@@ -717,7 +717,7 @@ public class ProcessVariance extends ExtendM3Transaction {
     String AIT6 = "";
     String AIT7 = "";
     
-      def responseBody = content.toString();
+      String responseBody = content.toString();
       int indexStart = responseBody.indexOf("AccountingDimension1>");
       int indexEnd = 0;
       if (indexStart !=-1){
@@ -770,14 +770,14 @@ public class ProcessVariance extends ExtendM3Transaction {
 
     logger.debug("reponseContent=" + responseContent);
     
-    def  accounts = [ "AIT1": AIT1, "AIT2":AIT2, "AIT3":AIT3, "AIT4":AIT4, "AIT5":AIT5, "AIT6":AIT6, "AIT7":AIT7];
+    Map<String, String>  accounts = [ "AIT1": AIT1, "AIT2":AIT2, "AIT3":AIT3, "AIT4":AIT4, "AIT5":AIT5, "AIT6":AIT6, "AIT7":AIT7];
     return accounts;
   }
   /*
    * getAccountingDate - check whether Accounting Date is valid
    *
   */
-  def String getAccountingDate(String divi, String acdt) {
+  String getAccountingDate(String divi, String acdt) {
     
     DBAction queryCSYTAB = database.table("CSYTAB").index("00").selection("CTPARM").build();
     DBContainer CSYTAB = queryCSYTAB.getContainer();
