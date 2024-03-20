@@ -112,8 +112,8 @@ public class EXT110 extends ExtendM3Batch {
 		  String inyr = record.INYR.trim();
 		  logger.debug("call APS110MI SINO=" + sino); 
 		  
-		  def  params = [ "DIVI": divi, "SUNO": suno, "SINO": sino, "INYR": inyr]; 
-      def callback = {
+		  Map<String, String>  params = [ "DIVI": divi, "SUNO": suno, "SINO": sino, "INYR": inyr];
+      Closure<?> callback = {
         Map<String, String> response ->
       }
       miCaller.call("APS110MI","ApproveInvoice", params, callback);
@@ -124,8 +124,8 @@ public class EXT110 extends ExtendM3Batch {
 	 *
 	*/
   private Optional<String> getJobData(String referenceId) {
-    def queryEXTJOB = database.table("EXTJOB").index("00").selection("EXRFID", "EXJOID", "EXDATA").build();
-    def EXTJOB = queryEXTJOB.createContainer();
+    DBAction queryEXTJOB = database.table("EXTJOB").index("00").selection("EXRFID", "EXJOID", "EXDATA").build();
+    DBContainer EXTJOB = queryEXTJOB.createContainer();
     EXTJOB.set("EXCONO", XXCONO);
     EXTJOB.set("EXRFID", referenceId);
     if (queryEXTJOB.read(EXTJOB)) {
@@ -157,12 +157,12 @@ public class EXT110 extends ExtendM3Batch {
     if (queryFGINHE.read(FGINHE)) {
       String ins0 = FGINHE.get("F4INS0").toString().trim();
       if (ins0 == "33334") {
-        def map = [DIVI: divi, SUNO: suno, SINO: sino, INYR: inyr];
+        Map<String, String> map = [DIVI: divi, SUNO: suno, SINO: sino, INYR: inyr];
         lstToBeApproved.add(map);
       }
       // Workaround for M3 error where all lines are set to 33334 but header is stuck on 33333
       if (ins0 == "33333") {
-        DBAction queryFGINLI = database.table("FGINLI").index("10").selection("F5INS5", "F5INS2","F5INS3","F5INS4","F5INS5").build();
+        DBAction queryFGINLI = database.table("FGINLI").index("10").selection("F5INS5").build();
         DBContainer FGINLI = queryFGINLI.getContainer();
         FGINLI.set("F5CONO", XXCONO);
         FGINLI.set("F5DIVI", divi);
@@ -173,7 +173,7 @@ public class EXT110 extends ExtendM3Batch {
         queryFGINLI.readAll(FGINLI, 6, 1, lstFGINLI);
          //If no lines are found waiting for account correction
         if (accountStatus.isBlank()) {
-          def map = [DIVI: divi, SUNO: suno, SINO: sino, INYR: inyr];
+          Map<String, String> map = [DIVI: divi, SUNO: suno, SINO: sino, INYR: inyr];
           lstToBeApproved.add(map);
         }
       }
