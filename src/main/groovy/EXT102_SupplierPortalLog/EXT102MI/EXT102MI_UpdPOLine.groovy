@@ -28,7 +28,6 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException
-import java.lang.NumberFormatException;
 import java.time.ZoneId;
 
 /*
@@ -191,33 +190,36 @@ public class UpdPOLine extends ExtendM3Transaction {
       return;
     }
 
+
+    if (responsePOLine.getStatusCode() != 200) {
+      mi.error("Incorrect status, no payload");
+      return;
+    } 
+      
     /*
     * If payload is for PO Confirmation "CNF"
     */
-		if(crud == "CNF"){
-
-			if (responsePOLine.getStatusCode() == 200) {
-				JsonSlurper jsonSlurper = new JsonSlurper();
-				Map<String, Object> miResponse = (Map<String, Object>) jsonSlurper.parseText(responsePOLine.getContent());
-				ArrayList<Map<String, Object>> results = (ArrayList<Map<String, Object>>) miResponse.get("results");
-				ArrayList<Map<String, String>> recordList = (ArrayList<Map<String, String>>) results[0]["records"];
-				recordList.eachWithIndex { it, index ->
-					Map<String, String> recordMPLINE = (Map<String, String>) it;
-					if (recordMPLINE.SUNO != null) {
-						itno = recordMPLINE.ITNO;
-						suno = recordMPLINE.SUNO;
-						orqaOld = recordMPLINE.ORQA;
-						orqa = recordMPLINE.ORQA;
-						if(!isStringNullOrEmpty(pupr) && isStringNullOrEmpty(puprOld)){
-							puprOld = recordMPLINE.PUPR;  
-						}
-						if(!isStringNullOrEmpty(dwdt) && isStringNullOrEmpty(dwdtOld)){
-							dwdtOld = recordMPLINE.DWDT;
-						}
+	  if(crud == "CNF"){
+			JsonSlurper jsonSlurper = new JsonSlurper();
+			Map<String, Object> miResponse = (Map<String, Object>) jsonSlurper.parseText(responsePOLine.getContent());
+			ArrayList<Map<String, Object>> results = (ArrayList<Map<String, Object>>) miResponse.get("results");
+			ArrayList<Map<String, String>> recordList = (ArrayList<Map<String, String>>) results[0]["records"];
+			recordList.eachWithIndex { it, index ->
+				Map<String, String> recordMPLINE = (Map<String, String>) it;
+				if (recordMPLINE.SUNO != null) {
+					itno = recordMPLINE.ITNO;
+					suno = recordMPLINE.SUNO;
+					orqaOld = recordMPLINE.ORQA;
+					orqa = recordMPLINE.ORQA;
+					if(!isStringNullOrEmpty(pupr) && isStringNullOrEmpty(puprOld)){
+						puprOld = recordMPLINE.PUPR;  
+					}
+					if(!isStringNullOrEmpty(dwdt) && isStringNullOrEmpty(dwdtOld)){
+						dwdtOld = recordMPLINE.DWDT;
 					}
 				}
 			}
-
+		
       /*
       * Perform PO Line Confirmation via API PPS100MI_ConfirmLine
       */
@@ -242,72 +244,73 @@ public class UpdPOLine extends ExtendM3Transaction {
       /*
       * If payload is not for PO Line Confirmation, Assumed as a PO Line Update.
       */
-			if (responsePOLine.getStatusCode() == 200) {
-				JsonSlurper jsonSlurper = new JsonSlurper();
-				Map<String, Object> miResponse = (Map<String, Object>) jsonSlurper.parseText(responsePOLine.getContent());
-				ArrayList<Map<String, Object>> results = (ArrayList<Map<String, Object>>) miResponse.get("results");
-				ArrayList<Map<String, String>> recordList = (ArrayList<Map<String, String>>) results[0]["records"];
-				recordList.eachWithIndex { it, index ->
-					Map<String, String> recordMPLINE = (Map<String, String>) it;
-					if (recordMPLINE.SUNO != null) {
-						itno = recordMPLINE.ITNO;
-						suno = recordMPLINE.SUNO;
-						orqaOld = recordMPLINE.ORQA;
-						orqa = recordMPLINE.ORQA;
-						if(isStringNullOrEmpty(puprOld)){
-							puprOld = recordMPLINE.PUPR;  
-						}
-						if(isStringNullOrEmpty(tel1Old)){
-							tel1Old = recordMPLINE.TEL1;  
-						}
-						if(isStringNullOrEmpty(pitdOld)){
-							pitdOld = recordMPLINE.PITD;
-						}
-						if(isStringNullOrEmpty(pittOld)){
-							pittOld = recordMPLINE.PITT;
-						}
-						if(isStringNullOrEmpty(dwdtOld)){
-							dwdtOld = recordMPLINE.DWDT;
-						}
+			JsonSlurper jsonSlurper = new JsonSlurper();
+			Map<String, Object> miResponse = (Map<String, Object>) jsonSlurper.parseText(responsePOLine.getContent());
+			ArrayList<Map<String, Object>> results = (ArrayList<Map<String, Object>>) miResponse.get("results");
+			ArrayList<Map<String, String>> recordList = (ArrayList<Map<String, String>>) results[0]["records"];
+			recordList.eachWithIndex { it, index ->
+				Map<String, String> recordMPLINE = (Map<String, String>) it;
+				if (recordMPLINE.SUNO != null) {
+					itno = recordMPLINE.ITNO;
+					suno = recordMPLINE.SUNO;
+					orqaOld = recordMPLINE.ORQA;
+					orqa = recordMPLINE.ORQA;
+					if(isStringNullOrEmpty(puprOld)){
+						puprOld = recordMPLINE.PUPR;  
+					}
+					if(isStringNullOrEmpty(tel1Old)){
+						tel1Old = recordMPLINE.TEL1;  
+					}
+					if(isStringNullOrEmpty(pitdOld)){
+						pitdOld = recordMPLINE.PITD;
+					}
+					if(isStringNullOrEmpty(pittOld)){
+						pittOld = recordMPLINE.PITT;
+					}
+					if(isStringNullOrEmpty(dwdtOld)){
+						dwdtOld = recordMPLINE.DWDT;
 					}
 				}
 			}
-  	  
-      /*
-      * Perform Update on PO Line via API PPS200MI_UpdLine
-      */
-			Map<String, String> params = new HashMap<String,String>();
-			String urlUpdLine = "/M3/m3api-rest/v2/execute/PPS200MI/UpdLine";
-			params = [ "PUNO": puno,  "PNLI": pnli, "PNLS": pnls ];
-			if(!isStringNullOrEmpty(pupr)){
-				params.put("PUPR", pupr);
-			}
-			if(!isStringNullOrEmpty(dwdt)){
-				params.put("DWDT", dwdt);
-			}
-			if(!isStringNullOrEmpty(pitd)){
-				params.put("PITD", pitd);
-			}
-			if(!isStringNullOrEmpty(pitt)){
-				params.put("PITT", pitt);
-			}
-			if(!isStringNullOrEmpty(tel1)){
-				params.put("TEL1", tel1);
-			}
-			Map<String,String> headers = ["Accept": "application/json"];
-			IonResponse response = ion.get(urlUpdLine, headers, params);
-			if(response.getError()){
-				logger.debug("Failed calling ION API ${urlUpdLine}, detailed error message: ${response.getErrorMessage()}");
-				mi.error("calling api failed ${urlUpdLine} " + response.getErrorMessage());
-				return;
-			}
-
 		}
-
-    /*
+		
+		
+		/*
+    * Perform Update on PO Line via API PPS200MI_UpdLine
+    */
+		Map<String, String> params = new HashMap<String,String>();
+		String urlUpdLine = "/M3/m3api-rest/v2/execute/PPS200MI/UpdLine";
+		params = [ "PUNO": puno,  "PNLI": pnli, "PNLS": pnls ];
+		if(!isStringNullOrEmpty(pupr)){
+			params.put("PUPR", pupr);
+		}
+		if(!isStringNullOrEmpty(dwdt)){
+			params.put("DWDT", dwdt);
+		}
+		if(!isStringNullOrEmpty(pitd)){
+			params.put("PITD", pitd);
+		}
+		if(!isStringNullOrEmpty(pitt)){
+			params.put("PITT", pitt);
+		}
+		if(!isStringNullOrEmpty(tel1)){
+			params.put("TEL1", tel1);
+		}
+		Map<String,String> headers = ["Accept": "application/json"];
+		IonResponse response = ion.get(urlUpdLine, headers, params);
+		if(response.getError()){
+			logger.debug("Failed calling ION API ${urlUpdLine}, detailed error message: ${response.getErrorMessage()}");
+			mi.error("calling api failed ${urlUpdLine} " + response.getErrorMessage());
+			return;
+		}
+		
+		/*
     * Write log values to extension table EXTSPZ
     */
-		writeEXT()
+	  writeEXT()
+		
+   
+  	  
 	}
 
 	/*
@@ -350,20 +353,23 @@ public class UpdPOLine extends ExtendM3Transaction {
 		}
 
     /*
-    * Parse PUNO to Long punoLong
-    */
-		punoLong = tryParseLong(puno);
-
-    /*
     * Validate dwdt as date MovexDate
     */
-		isDateParsed = tryParseDate(dwdt);
-		if(isStringNullOrEmpty(dwdt)){
-			isDateParsed = tryParseDate(dwdtOld);
-		}
-		if(!isDateParsed){
-			return false;
-		}
+    if(crud == "CNF")
+    {
+      if(!isStringNullOrEmpty(dwdt)){
+        tryParseDate(dwdt);
+      }
+      if(!isStringNullOrEmpty(dwdtOld)){
+        tryParseDate(dwdtOld);
+      }
+      
+    } else {
+      tryParseDate(dwdt);
+      if(!isStringNullOrEmpty(dwdtOld)){
+        tryParseDate(dwdtOld);
+      }
+    }
 
     /*
     * Validate user email not empty
@@ -389,7 +395,7 @@ public class UpdPOLine extends ExtendM3Transaction {
 		EXTSPZ.set("EXCONO", XXCONO);
 		EXTSPZ.set("EXSUNO", suno);
 		EXTSPZ.set("EXITNO", itno);
-		EXTSPZ.set("EXPUNO", punoLong);
+		EXTSPZ.set("EXPUNO", puno);
 		EXTSPZ.set("EXPNLI", pnli.toInteger());
 		EXTSPZ.set("EXPNLS", pnls.toInteger());
 		EXTSPZ.set("EXORQA", orqa.toDouble());
@@ -442,22 +448,11 @@ public class UpdPOLine extends ExtendM3Transaction {
   /*
   * Helpers
   */
-	private Long tryParseLong(String stringToParse){
-		if(isStringNullOrEmpty(stringToParse)){
-			mi.error("Parse Long string is Empty");
-			return -1;
-		}
-		try {
-			return Long.parseLong(stringToParse);
-		} catch (NumberFormatException nfe){
-			mi.error("Parse Long " + stringToParse.toString() + " " + nfe.getMessage());
-			return -1;
-		}
-	}
+
 	private void tryParseDate(String stringToParse){
 		if (isStringNullOrEmpty(stringToParse)) {
 			if(stringToParse.length() != 8){
-				mi.error("Date length must be 8 - DWDT");
+				mi.error("Date length must be 8");
 			}
 			try {
 				LocalDate.parse(stringToParse, DateTimeFormatter.ofPattern("yyyyMMdd"))
@@ -465,7 +460,6 @@ public class UpdPOLine extends ExtendM3Transaction {
 				mi.error("Incorrect date format yyyyMMdd - DWDT");
 			}
 		}
-		mi.error("Date length must be 8 - DWDT");
 	}
 	private boolean isStringNullOrEmpty(String stringToValidate){
 		return stringToValidate == null || stringToValidate.isEmpty();
