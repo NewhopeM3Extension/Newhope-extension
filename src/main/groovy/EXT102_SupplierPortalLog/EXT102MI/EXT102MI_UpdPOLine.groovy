@@ -32,11 +32,12 @@ import java.time.ZoneId;
 
 /*
 *Modification area - M3
-*Nbr               Date      User id     Description
-*EXT102            20240116  RMURRAY     Update EXT api to handle portal updates and logging
-*EXT102            20240205  RMURRAY     Validation on ION API call. 
-*EXT102            20240414  RMURRAY     Add in PO Line confirmation
-*EXT102            20240501  RMURRAY     Prepare for submission, PRD Approval.
+*Nbr     Date      User id   Description
+*EXT102  20240116  RMURRAY   Update EXT api to handle portal updates and logging
+*EXT102  20240205  RMURRAY   Validation on ION API call. 
+*EXT102  20240414  RMURRAY   Add in PO Line confirmation
+*EXT102  20240501  RMURRAY   Prepare for submission, PRD Approval.
+*EXT102	 20240514  RMURRAY	 Making updates as per review feedback.
 */
 
 /*
@@ -63,15 +64,14 @@ public class UpdPOLine extends ExtendM3Transaction {
 	private String itno;
 	private String orqa;
 	private String crud;
-	private String puprOld;
-	private String dwdtOld;
-	private String pitdOld;
-	private String pittOld;
-	private String tel1Old;
-	private String orqaOld;
+	private String chid;
+	private String pupo;
+	private String dwdo;
+	private String pito;
+	private String pit2;
+	private String telo;
+	private String orqo;
 	private String currentDateTime;
-
-	private long punoLong;
 
 	private int currentDate;
 	private int currentTime;
@@ -89,8 +89,8 @@ public class UpdPOLine extends ExtendM3Transaction {
 
 	public void main() {
 		/**
-    *Fetch input fields from MI
-    */
+		*Fetch input fields from MI
+		*/
 		puno = mi.inData.get("PUNO") == null ? '' : mi.inData.get("PUNO").trim();
 		if (puno == "?") {
 			puno = "";
@@ -131,75 +131,81 @@ public class UpdPOLine extends ExtendM3Transaction {
 		if (emal == "?") {
 			emal = "";
 		} 
-		pittOld = mi.inData.get("PIT2") == null ? '' : mi.inData.get("PIT2").trim();
-		if (pittOld == "?") {
-			pittOld = "";
+		pit2 = mi.inData.get("PIT2") == null ? '' : mi.inData.get("PIT2").trim();
+		if (pit2 == "?") {
+			pit2 = "";
 		} 
-		pitdOld = mi.inData.get("PITO") == null ? '' : mi.inData.get("PITO").trim();
-		if (pitdOld == "?") {
-			pitdOld = "";
+		pito = mi.inData.get("PITO") == null ? '' : mi.inData.get("PITO").trim();
+		if (pito == "?") {
+			pito = "";
 		} 
-		puprOld = mi.inData.get("PUPO") == null ? '' : mi.inData.get("PUPO").trim();
-		if (puprOld == "?") {
-			puprOld = "";
+		pupo = mi.inData.get("PUPO") == null ? '' : mi.inData.get("PUPO").trim();
+		if (pupo == "?") {
+			pupo = "";
 		}     
-		dwdtOld = mi.inData.get("DWDO") == null ? '' : mi.inData.get("DWDO").trim();
-		if (dwdtOld == "?") {
-			dwdtOld = "";
+		dwdo = mi.inData.get("DWDO") == null ? '' : mi.inData.get("DWDO").trim();
+		if (dwdo == "?") {
+			dwdo = "";
 		} 
-		tel1Old = mi.inData.get("TELO") == null ? '' : mi.inData.get("TELO").trim();
-		if (tel1Old == "?") {
-			tel1Old = "";
+		telo = mi.inData.get("TELO") == null ? '' : mi.inData.get("TELO").trim();
+		if (telo == "?") {
+			telo = "";
 		} 
 		crud = mi.inData.get("CRUD") == null ? '' : mi.inData.get("CRUD").trim();
 		if (crud == "?") {
 			crud = "";
 		} 
-		suno = "";
-		itno = "";
-		orqa = "";
-		orqaOld = "";
 
 		/*
-    * Perform validation on input variables
-    */
+		* Set company number
+		*/
+		XXCONO= program.LDAZD.CONO;
+		/*
+		* Set program user as chid user
+		*/
+		chid = program.getUser();
+
+		/*
+		* Perform validation on input variables
+		* Note to reviewer - Validation not required on ITNO or SUNO as these fields are retrieved by the api PPS200MI_GetLine
+		*/
 		if (!validateInput()) {
 			return;
 		}
 
 		/*
-    * Set Date Variables with customer local time zone
-    */
+		* Set Date Variables with customer local time zone
+		*/
 		ZoneId zid = ZoneId.of("Australia/Brisbane"); 
 		currentDate = LocalDate.now(zid).format(DateTimeFormatter.ofPattern("yyyyMMdd")).toInteger();
 		currentTime = Integer.valueOf(LocalDateTime.now().format(DateTimeFormatter.ofPattern("HHmmss")));
 		currentDateTime =  (LocalDate.now(zid).format(DateTimeFormatter.ofPattern("dd MMM yyyy")) + " " + LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH:mm:ss"))).toString() + " AEST"; 
 
-    /*
-    * Retrieve purchase order line information via API PPS200MI_GetLine
-    */
-    Map<String, String> paramsPOLine = [ "CONO": XXCONO.toString(), "PUNO": puno, "PNLI": pnli, "PNLS": pnls ];
+		/*
+		* Retrieve purchase order line information via API PPS200MI_GetLine
+		*/
+		Map<String, String> paramsPOLine = [ "CONO": XXCONO.toString(), "PUNO": puno, "PNLI": pnli, "PNLS": pnls ];
 		String urlPOLine = "/M3/m3api-rest/v2/execute/PPS200MI/GetLine";
-	
+
 		Map<String,String> headersPOLine = ["Accept": "application/json"];
 		IonResponse responsePOLine = ion.get(urlPOLine, headersPOLine, paramsPOLine);
 
-    if(responsePOLine.getError()){
-      logger.debug("Failed calling ION API ${urlPOLine}, detailed error message: ${responsePOLine.getErrorMessage()}");
-      mi.error("calling api failed ${urlPOLine} " + responsePOLine.getErrorMessage());
-      return;
-    }
+		if(responsePOLine.getError()){
+			logger.debug("Failed calling ION API ${urlPOLine}, detailed error message: ${responsePOLine.getErrorMessage()}");
+			mi.error("calling api failed ${urlPOLine} " + responsePOLine.getErrorMessage());
+			return;
+		}
 
+		if (responsePOLine.getStatusCode() != 200) {
+			mi.error("Incorrect status, no payload");
+			return;
+		} 
+			
+		/*
+		* If payload is for PO Confirmation "CNF"
+		*/
+		if(crud == "CNF"){
 
-    if (responsePOLine.getStatusCode() != 200) {
-      mi.error("Incorrect status, no payload");
-      return;
-    } 
-      
-    /*
-    * If payload is for PO Confirmation "CNF"
-    */
-	  if(crud == "CNF"){
 			JsonSlurper jsonSlurper = new JsonSlurper();
 			Map<String, Object> miResponse = (Map<String, Object>) jsonSlurper.parseText(responsePOLine.getContent());
 			ArrayList<Map<String, Object>> results = (ArrayList<Map<String, Object>>) miResponse.get("results");
@@ -209,23 +215,23 @@ public class UpdPOLine extends ExtendM3Transaction {
 				if (recordMPLINE.SUNO != null) {
 					itno = recordMPLINE.ITNO;
 					suno = recordMPLINE.SUNO;
-					orqaOld = recordMPLINE.ORQA;
+					orqo = recordMPLINE.ORQA;
 					orqa = recordMPLINE.ORQA;
-					if(!isStringNullOrEmpty(pupr) && isStringNullOrEmpty(puprOld)){
-						puprOld = recordMPLINE.PUPR;  
+					if(!isStringNullOrEmpty(pupr) && isStringNullOrEmpty(pupo)){
+						pupo = recordMPLINE.PUPR;  
 					}
-					if(!isStringNullOrEmpty(dwdt) && isStringNullOrEmpty(dwdtOld)){
-						dwdtOld = recordMPLINE.DWDT;
+					if(!isStringNullOrEmpty(dwdt) && isStringNullOrEmpty(dwdo)){
+						dwdo = recordMPLINE.DWDT;
 					}
 				}
 			}
 		
-      /*
-      * Perform PO Line Confirmation via API PPS100MI_ConfirmLine
-      */
-			Map<String, String> params = new HashMap<String,String>();
+			/*
+			* Perform PO Line Confirmation via API PPS100MI_ConfirmLine
+			*/
+			Map<String, String> params = [ "PUNO": puno,  "PNLI": pnli, "PNLS": pnls ];
 			String urlConfirmLine = "/M3/m3api-rest/v2/execute/PPS001MI/ConfirmLine";
-			params = [ "PUNO": puno,  "PNLI": pnli, "PNLS": pnls ];
+
 			if(!isStringNullOrEmpty(pupr)){
 				params.put("PUPR", pupr);
 			}
@@ -240,10 +246,10 @@ public class UpdPOLine extends ExtendM3Transaction {
 				return;
 			}
       
-    } else {
-      /*
-      * If payload is not for PO Line Confirmation, Assumed as a PO Line Update.
-      */
+    	} else {
+			/*
+			* If payload is not for PO Line Confirmation, Assumed as a PO Line Update.
+			*/
 			JsonSlurper jsonSlurper = new JsonSlurper();
 			Map<String, Object> miResponse = (Map<String, Object>) jsonSlurper.parseText(responsePOLine.getContent());
 			ArrayList<Map<String, Object>> results = (ArrayList<Map<String, Object>>) miResponse.get("results");
@@ -253,31 +259,30 @@ public class UpdPOLine extends ExtendM3Transaction {
 				if (recordMPLINE.SUNO != null) {
 					itno = recordMPLINE.ITNO;
 					suno = recordMPLINE.SUNO;
-					orqaOld = recordMPLINE.ORQA;
+					orqo = recordMPLINE.ORQA;
 					orqa = recordMPLINE.ORQA;
-					if(isStringNullOrEmpty(puprOld)){
-						puprOld = recordMPLINE.PUPR;  
+					if(isStringNullOrEmpty(pupo)){
+						pupo = recordMPLINE.PUPR;  
 					}
-					if(isStringNullOrEmpty(tel1Old)){
-						tel1Old = recordMPLINE.TEL1;  
+					if(isStringNullOrEmpty(telo)){
+						telo = recordMPLINE.TEL1;  
 					}
-					if(isStringNullOrEmpty(pitdOld)){
-						pitdOld = recordMPLINE.PITD;
+					if(isStringNullOrEmpty(pito)){
+						pito = recordMPLINE.PITD;
 					}
-					if(isStringNullOrEmpty(pittOld)){
-						pittOld = recordMPLINE.PITT;
+					if(isStringNullOrEmpty(pit2)){
+						pit2 = recordMPLINE.PITT;
 					}
-					if(isStringNullOrEmpty(dwdtOld)){
-						dwdtOld = recordMPLINE.DWDT;
+					if(isStringNullOrEmpty(dwdo)){
+						dwdo = recordMPLINE.DWDT;
 					}
 				}
 			}
 		}
 		
-		
 		/*
-    * Perform Update on PO Line via API PPS200MI_UpdLine
-    */
+		* Perform Update on PO Line via API PPS200MI_UpdLine
+		*/
 		Map<String, String> params = new HashMap<String,String>();
 		String urlUpdLine = "/M3/m3api-rest/v2/execute/PPS200MI/UpdLine";
 		params = [ "PUNO": puno,  "PNLI": pnli, "PNLS": pnls ];
@@ -305,11 +310,9 @@ public class UpdPOLine extends ExtendM3Transaction {
 		}
 		
 		/*
-    * Write log values to extension table EXTSPZ
-    */
-	  writeEXT()
-		
-   
+		* Write log values to extension table EXTSPZ
+		*/
+		writeEXT();
   	  
 	}
 
@@ -320,76 +323,73 @@ public class UpdPOLine extends ExtendM3Transaction {
 	*/
 	private boolean validateInput(){
 
-    /*
-    * Set company number
-    */
-		XXCONO= program.LDAZD.CONO;
 
-    /*
-    * CRUD field must not be null or empty
-    */
+		/*
+		* CRUD field must not be null or empty
+		*/
 		if(isStringNullOrEmpty(crud)){
 			logger.debug("mi.error: CRUD value is null or empty");
 			mi.error("Crud value not specified")
 			return false;
 		} 
 
-    /*
-    * CRUD must be UPD or CNF
-    */
+		/*
+		* CRUD must be UPD or CNF
+		*/
 		if(crud != "UPD" && crud != "CNF"){
 			logger.debug("mi.error: CRUD input is incorrect " + crud);
 			mi.error("CRUD must be UPD or CNF");
 			return false;
 		}
 
-    /*
-    * Validate key fields used for api call
-    */
+		/*
+		* Validate key fields used for api call
+		*/
 		String purchaseOrderLine = isStringNullOrEmpty(puno) ? "PUNO" : isStringNullOrEmpty(pnli) ? "PNLI" : isStringNullOrEmpty(pnls) ? "PNLS" : "";
 		if (!isStringNullOrEmpty(purchaseOrderLine)) {
 			mi.error("${purchaseOrderLine}, not defined");
 			return false;
 		}
 
-    /*
-    * Validate dwdt as date MovexDate
-    */
-    if(crud == "CNF")
-    {
-      if(!isStringNullOrEmpty(dwdt)){
-        tryParseDate(dwdt);
-      }
-      if(!isStringNullOrEmpty(dwdtOld)){
-        tryParseDate(dwdtOld);
-      }
-      
-    } else {
-      tryParseDate(dwdt);
-      if(!isStringNullOrEmpty(dwdtOld)){
-        tryParseDate(dwdtOld);
-      }
-    }
+		/*
+		* Validate dwdt as date MovexDate YDM8 YYYYMMDD
+		*/
+		if(crud == "CNF") {
+			/*Validate dwdt as date MovexDate*/
+			if(!isStringNullOrEmpty(dwdt)){
+				tryParseDate(dwdt);
+			}
+			/*Validate dwdo as date MovexDate*/
+			if(!isStringNullOrEmpty(dwdo)){
+				tryParseDate(dwdo);
+			}
+		} else {
+			tryParseDate(dwdt);
+			/*Validate dwdo as date MovexDate*/
+			if(!isStringNullOrEmpty(dwdo)){
+				tryParseDate(dwdo);
+			}
+		}
 
-    /*
-    * Validate user email not empty
-    */
-		if(isStringNullOrEmpty(emal)){
-			mi.error("EMAL not supplied");
+		/*
+		* Validate user email not empty
+		*/
+		if(!isEmailFormat(emal)){
+			mi.error("Invalid email address - EMAL");
 			return false;
 		}
 
 		/*
-    * Validation Successful
-    */
+		* Validation Successful
+		*/
 		return true;
 	}
 
-  /*
+	/*
 	* writeEXT
 	* Create log entry in table EXTSPZ
 	*/
-  private void writeEXT() {
+	private void writeEXT() {
 		DBAction actionEXTSPZ = database.table("EXTSPZ").build();
 		DBContainer EXTSPZ = actionEXTSPZ.getContainer();
 		EXTSPZ.set("EXCONO", XXCONO);
@@ -399,35 +399,35 @@ public class UpdPOLine extends ExtendM3Transaction {
 		EXTSPZ.set("EXPNLI", pnli.toInteger());
 		EXTSPZ.set("EXPNLS", pnls.toInteger());
 		EXTSPZ.set("EXORQA", orqa.toDouble());
-		EXTSPZ.set("EXORQO", orqaOld.toDouble());
+		EXTSPZ.set("EXORQO", orqo.toDouble());
 		if(!isStringNullOrEmpty(pupr)){
 			EXTSPZ.set("EXPUPR", pupr.toDouble());
-			if(!isStringNullOrEmpty(puprOld)){
-				EXTSPZ.set("EXPUPO", puprOld.toDouble());
+			if(!isStringNullOrEmpty(pupo)){
+				EXTSPZ.set("EXPUPO", pupo.toDouble());
 			}
 		}
 		if(!isStringNullOrEmpty(dwdt)){
 			EXTSPZ.set("EXDWDT", dwdt.toInteger());
-			if(!isStringNullOrEmpty(dwdtOld)){ 
-				EXTSPZ.set("EXDWDO", dwdtOld.toInteger());
+			if(!isStringNullOrEmpty(dwdo)){ 
+				EXTSPZ.set("EXDWDO", dwdo.toInteger());
 			}
 		}
 		if(!isStringNullOrEmpty(pitd)){
 			EXTSPZ.set("EXPITD", pitd);
-			if(isStringNullOrEmpty(pitdOld)){
-				EXTSPZ.set("EXPITO", pitdOld);
+			if(isStringNullOrEmpty(pito)){
+				EXTSPZ.set("EXPITO", pito);
 			}
 		}
 		if(!isStringNullOrEmpty(pitt)){
 			EXTSPZ.set("EXPITT", pitt);
-			if(!isStringNullOrEmpty(pittOld)){
-				EXTSPZ.set("EXPIT2", pittOld);
+			if(!isStringNullOrEmpty(pit2)){
+				EXTSPZ.set("EXPIT2", pit2);
 			}
 		}
 		if(!isStringNullOrEmpty(tel1)){
 			EXTSPZ.set("EXTEL1", tel1);
-			if(!isStringNullOrEmpty(tel1Old)){
-				EXTSPZ.set("EXTELO", tel1Old);
+			if(!isStringNullOrEmpty(telo)){
+				EXTSPZ.set("EXTELO", telo);
 			}
 		}
 		EXTSPZ.set("EXEMAL", emal);
@@ -435,6 +435,10 @@ public class UpdPOLine extends ExtendM3Transaction {
 		EXTSPZ.set("EXLMTM", currentTime.toInteger());
 		EXTSPZ.set("EXDTXX", currentDateTime);
 		EXTSPZ.set("EXCRUD", crud); 
+		EXTSPZ.set("EXCHID", chid);
+		EXTSPZ.set("EXCHNO", 0); 
+		EXTSPZ.set("EXRGDT", currentDate);
+		EXTSPZ.set("EXRGTM", currentTime);
 		actionEXTSPZ.insert(EXTSPZ, recordExists);
 	}
 	
@@ -445,24 +449,40 @@ public class UpdPOLine extends ExtendM3Transaction {
 		mi.error("Record already exists");
 	}
 
-  /*
-  * Helpers
-  */
-
+	/********
+	* Helpers
+	*/
+	/*
+	* Checks if the date is correct format for MovexDate YYYYMMDD YDM8
+	*/
 	private void tryParseDate(String stringToParse){
 		if (isStringNullOrEmpty(stringToParse)) {
 			if(stringToParse.length() != 8){
 				mi.error("Date length must be 8");
+				return;
 			}
 			try {
 				LocalDate.parse(stringToParse, DateTimeFormatter.ofPattern("yyyyMMdd"))
 			} catch (DateTimeParseException e) {
-				mi.error("Incorrect date format yyyyMMdd - DWDT");
+				mi.error("Incorrect date format yyyyMMdd");
+				return;
 			}
 		}
 	}
+	
+	/*
+	* Checks if the string is null or empty.
+	*/
 	private boolean isStringNullOrEmpty(String stringToValidate){
 		return stringToValidate == null || stringToValidate.isEmpty();
+	}
+
+	/*
+	* Checks if string is not null or empty, contains the @ symbol
+	* unable to use java.util.regex, unable to use PatternSyntaxException
+	*/
+	private boolean isEmailFormat(String stringToValidate){
+		return !isStringNullOrEmpty(stringToValidate) && stringToValidate.contains('@') && !isStringNullOrEmpty(stringToValidate.split('@')[0]) && !isStringNullOrEmpty(stringToValidate.split('@')[1]) && stringToValidate.split('@')[1].contains('.');
 	}
 
 }
