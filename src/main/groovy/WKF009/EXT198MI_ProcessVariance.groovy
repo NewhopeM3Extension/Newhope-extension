@@ -38,6 +38,7 @@
 * Nbr               Date      User id     Description
 * WKF009            20230927  KVERCO      Supplier invoice variance recoding
 * WKF009            20240308  KVERCO      Set accounting date according to open period + improve logging and error codes
+* WKF009            20240528  KVERCO      Check for vouchers where LstVoucherLines returns nothing
 */
  
 /**
@@ -176,6 +177,13 @@ public class ProcessVariance extends ExtendM3Transaction {
     }
 
     miCaller.call("GLS200MI", "LstVoucherLines", params, GLS200MIcallback);
+    
+    if (jrnoFPLEDG.isEmpty()) {
+      PROC = "";
+      updateProcessFlag(divi, yea4, jrno, jsno, "7");
+      logger.debug("No GLS200MI rows found for division-" + divi + ", year-" + yea4 + ", journal-" + jrno + ", journal seq-" + jsno);
+      return;
+    }
     
     DBAction queryFPLEDG = database.table("FPLEDG").index("00").selection("EPSUNO", "EPSPYN", "EPSINO", "EPINYR").build();
     DBContainer FPLEDG = queryFPLEDG.getContainer();
