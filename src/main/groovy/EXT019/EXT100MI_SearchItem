@@ -120,7 +120,11 @@ public class SearchItem extends ExtendM3Transaction {
       lstMMS200MISearchItem = new ArrayList();
       String sqry = "";
       if (wild.toInteger() == 1) {
-        sqry = "STAT:[20 TO 50] (ITDS:*" + sstr + "* OR ITNO:*" + sstr + "*)";
+        if(sstr.split(' ').length > 0){
+          sqry = "STAT:[20 TO 50] ITDS:*" + sstr + "*"
+        }else{
+          sqry = "STAT:[20 TO 50] (ITDS:*" + sstr + "* OR ITNO:*" + sstr + "*)";  
+        }
       } else {
         sqry = "STAT:[20 TO 50] (ITDS:" + sstr + "* OR ITNO:" + sstr + ")";
       }
