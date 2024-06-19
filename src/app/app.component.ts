@@ -17,6 +17,9 @@ export class AppComponent extends CoreBase implements OnInit {
    language: string;
    currentLanguage: string;
 
+   portalTitle: string = "Portal"
+   portalTitleIcon: string = "menu"
+
    constructor(private miService: MIService, private userService: UserService) {
       super('AppComponent');
    }

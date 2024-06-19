@@ -20,3 +20,22 @@ mat-spinner {
    width: 100%;
    padding: 0 10px;
 }
+
+.drawer-container {
+  width: 100%;
+  height: calc(100% - 64px);
+  border: 1px solid rgba(0, 0, 0, 0.5);
+}
+
+.drawer-sidenav-content {
+  display: flex;
+  height: 100%;
+  align-items: center;
+  justify-content: center;
+}
+
+.drawer-sidenav {
+  background-color: lightgray;
+  padding: 20px;
+
+}
