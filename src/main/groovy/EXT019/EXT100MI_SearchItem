@@ -27,19 +27,22 @@
  import java.time.LocalDateTime;
  import java.time.format.DateTimeFormatter;
  import java.time.ZoneId;
+ import java.util.ArrayList;
+ import java.util.List;
+
  import groovy.json.JsonSlurper;
  
- 
- /*
+/*
  *Modification area - M3
  *Nbr               Date      User id     Description
  *EXT019            20230322  WZHAO       Work Order Integrated with Parts Portal 
  *EXT019            20231025  RUSSELM     Added GetPrice call, and removed records which are not active/existing in MITBAL
  *EXT019            20231025  RUSSELM     Changing all variables to use camelCase.
+ *EXT019            20240619  RUSSELM     Added in search for multiple permutations from input string when type 1 and wild 
  */
  
-  /*
-  * Search item
+/*
+ * Search item
  */
 public class SearchItem extends ExtendM3Transaction {
   private final MIAPI mi;
@@ -56,7 +59,7 @@ public class SearchItem extends ExtendM3Transaction {
   private String wild;
   private String itty;
   private String ledt;
-  
+
   private int XXCONO;
   private int currentDate;
   private int currentTime
@@ -86,7 +89,7 @@ public class SearchItem extends ExtendM3Transaction {
     this.ion = ion;
   }
   
-  public void main() {
+  public void main() { 
     //Fetch input fields from MI
     cono = mi.inData.get("CONO") == null ? '' : mi.inData.get("CONO").trim();
   	if (cono == "?") {
@@ -118,37 +121,55 @@ public class SearchItem extends ExtendM3Transaction {
     // Search on item master
     if (type.toInteger() == 1) {
       lstMMS200MISearchItem = new ArrayList();
-      String sqry = "";
+
+      //String sqry = "";
+      List<String> sqryList = new ArrayList<String>();
+
       if (wild.toInteger() == 1) {
-        if(sstr.split(' ').length > 0){
-          sqry = "STAT:[20 TO 50] ITDS:*" + sstr + "*"
+        //If multiple words in search string
+        if(sstr.split("\\s+").length > 0){
+          
+          String[] inputStringWords = sstr.split("\\s+");
+          List<String> data = new ArrayList<>();
+          if(data.addAll(Arrays.asList(inputStringWords))){
+              List<List<String>> permutations = generatePermutations(data);
+              for (List<String> permutation : permutations) {
+                  String x = "";
+                  for(String item: permutation){
+                      x += item + " ";
+                  }
+                  x = x.trim();
+                  sqryList.add("STAT:[20 TO 50] ITDS:*" + x + "*");
+              }
+          }
+          else{
+            sqryList.add("STAT:[20 TO 50] ITDS:*" + sstr + "*");  
+          }
         }else{
-          sqry = "STAT:[20 TO 50] (ITDS:*" + sstr + "* OR ITNO:*" + sstr + "*)";  
+          sqryList.add("STAT:[20 TO 50] (ITDS:*" + sstr + "* OR ITNO:*" + sstr + "*)");  
         }
       } else {
-        sqry = "STAT:[20 TO 50] (ITDS:" + sstr + "* OR ITNO:" + sstr + ")";
+        sqryList.add("STAT:[20 TO 50] (ITDS:" + sstr + "* OR ITNO:" + sstr + ")");
       }
-      def params = [ "SQRY": sqry]; 
-      def callback = {
-        Map<String, String> response ->
-        if (response.ITNO != null) {
-          String itno = response.ITNO;
-          String itds = response.ITDS;
-          String fuds = response.FUDS;
-          def map = [ITNO: itno, ITDS: itds, FUDS: fuds];
-          lstMMS200MISearchItem.add(map);
+      
+      if(sqryList != null && sqryList.size() > 0){
+        for(String sqry: sqryList){
+          Map<String, String> params = [ "SQRY": sqry]; 
+          miCaller.call("MMS200MI","SearchItem", params, callback);
+          logger.debug("lstMMS200MISearchItem.size()=" + lstMMS200MISearchItem.size()); 
         }
       }
-      miCaller.call("MMS200MI","SearchItem", params, callback);
-      logger.debug("lstMMS200MISearchItem.size()=" + lstMMS200MISearchItem.size());
+      
       if (lstMMS200MISearchItem.size() <= 0) {
-        sqry = "STAT:[20 TO 50] (ITNO:*" + sstr + "* OR ITNO:" + sstr + ")";
-        params = [ "SQRY": sqry];
+        String fallbackSqry = "STAT:[20 TO 50] (ITNO:*" + sstr + "* OR ITNO:" + sstr + ")";
+        Map<String, String> params = [ "SQRY": fallbackSqry];
         miCaller.call("MMS200MI","SearchItem", params, callback);
       }
+      
       if (lstMMS200MISearchItem.size() > 0) {
         getStocksAndSupplierItem(lstMMS200MISearchItem);
-      }
+      } 
+
     } else if (type.toInteger() == 2) {
       lstMDBREADMILstMITPOP60 = new ArrayList();
       String sqry = "";
@@ -198,7 +219,7 @@ public class SearchItem extends ExtendM3Transaction {
               ok = true;
             }
             if (ok) {
-              def map = [ITNO: itno, POPN: popn, E0PA: e0pa];
+              Map<String,String> map = [ITNO: itno, POPN: popn, E0PA: e0pa];
               lstMDBREADMILstMITPOP60.add(map);
             }
           }
@@ -227,7 +248,7 @@ public class SearchItem extends ExtendM3Transaction {
             String itno = recordMITVEN.ITNO;
             String ppun = recordMITVEN.PPUN;
             String pupr = recordMITVEN.PUPR.trim().toDouble().toString();
-            def map = [SUNO: suno, ITNO: itno, PPUN: ppun, PUPR: pupr];
+            Map<String,String> map = [SUNO: suno, ITNO: itno, PPUN: ppun, PUPR: pupr];
             lstMDBREADMILstMITVEN10.add(map);
           }
         }
@@ -322,11 +343,24 @@ public class SearchItem extends ExtendM3Transaction {
    * getStocksAndSupplierItem - retrieve from MITBAL and MITVEN
    *
    */
-  def getStocksAndSupplierItem (List itemList) {
+  private void getStocksAndSupplierItem (List itemList) {
     for (int i=0;i<itemList.size();i++) {
       Map<String, String> record = (Map<String, String>) itemList[i];
 		  itno = record.ITNO.trim();
 		  
+		  boolean itemExists = false;
+		  for (int j = 0; j < lstValidItems.size(); j++) {
+        Map<String,String> validItem =  (HashMap<String,String>)lstValidItems[j];
+        if(itno == validItem.ITNO.trim()){
+          itemExists = true;
+		      break;
+		    }
+      }
+      
+      if(itemExists){
+        continue;
+      }
+      
 		  String unms = "";
 		  String itds = "";
 		  String fuds = "";
@@ -485,7 +519,7 @@ public class SearchItem extends ExtendM3Transaction {
       }
       
 
-      def map = [ITNO: itno, ITDS: itds, FUDS: fuds, UNMS: unms, STCD: stcd, AVAL: aval, WHSL: whsl, REOP: reop, MXST: mxst, ORQT: orqt, POPN: popn, PLDT: pldt, SUNO: suno, PUPR: pupr, PPUN: ppun, ITTY: itty, LEAT: leat, WDNO: wdno, LEDT: ledt, WHLO: whloMITBAL];
+      Map<String,String> map = [ITNO: itno, ITDS: itds, FUDS: fuds, UNMS: unms, STCD: stcd, AVAL: aval, WHSL: whsl, REOP: reop, MXST: mxst, ORQT: orqt, POPN: popn, PLDT: pldt, SUNO: suno, PUPR: pupr, PPUN: ppun, ITTY: itty, LEAT: leat, WDNO: wdno, LEDT: ledt, WHLO: whloMITBAL];
       lstValidItems.add(map);
     }
   }
@@ -511,7 +545,44 @@ public class SearchItem extends ExtendM3Transaction {
     String suno = MITVEN.get("IFSUNO").toString().trim();
     String pupr = MITVEN.get("IFPUPR").toString().trim();
     String ppun = MITVEN.get("IFPPUN").toString().trim();
-    def map = [SUNO: suno, PUPR: pupr, PPUN: ppun];
+    Map<String,String> map = [SUNO: suno, PUPR: pupr, PPUN: ppun];
     lstMITVEN.add(map);
   }
+  
+  Closure<?> callback = { Map<String, String> response ->
+    if (response.ITNO != null) {
+      String itno = response.ITNO;
+      String itds = response.ITDS;
+      String fuds = response.FUDS;
+      Map<String, String> map = [ITNO: itno, ITDS: itds, FUDS: fuds];
+      lstMMS200MISearchItem.add(map);
+    }
+  }
+  
+  private List<List<String>> generatePermutations(List<String> data) {
+        List<List<String>> permutations = new ArrayList<>();
+        helper(data, 0, permutations);
+        return permutations;
+  }
+
+  private void helper(List<String> data, int index, List<List<String>> permutations) {
+      if (index == data.size() - 1) {
+          permutations.add(new ArrayList<>(data));
+          return;
+      }
+
+      for (int i = index; i < data.size(); i++) {
+          swap(data, index, i);
+          helper(data, index + 1, permutations);
+          swap(data, index, i); // Backtrack by swapping back
+      }
+  }
+
+  private void swap(List<String> data, int a, int b) {
+      String temp = data.get(a);
+      data.set(a, data.get(b));
+      data.set(b, temp);
+  }
+
+  
 }
