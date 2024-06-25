@@ -38,7 +38,7 @@
  *EXT019            20230322  WZHAO       Work Order Integrated with Parts Portal 
  *EXT019            20231025  RUSSELM     Added GetPrice call, and removed records which are not active/existing in MITBAL
  *EXT019            20231025  RUSSELM     Changing all variables to use camelCase.
- *EXT019            20240619  RUSSELM     Added in search for multiple permutations from input string when type 1 and wild 
+ *EXT019            20240619  RUSSELM     Added MultiWord search for all possible permutations from input string when type 1 and wild 
  */
  
 /*
@@ -111,6 +111,7 @@ public class SearchItem extends ExtendM3Transaction {
   	if (wild == "?") {
   	  wild = "";
   	} 
+
     if (!validateInput()) {
       return;
     }
@@ -120,27 +121,25 @@ public class SearchItem extends ExtendM3Transaction {
     lstValidItems = new ArrayList();
     // Search on item master
     if (type.toInteger() == 1) {
+
       lstMMS200MISearchItem = new ArrayList();
 
-      //String sqry = "";
       List<String> sqryList = new ArrayList<String>();
 
       if (wild.toInteger() == 1) {
         //If multiple words in search string
         if(sstr.split("\\s+").length > 0){
-          
           String[] inputStringWords = sstr.split("\\s+");
           List<String> data = new ArrayList<>();
           if(data.addAll(Arrays.asList(inputStringWords))){
-              List<List<String>> permutations = generatePermutations(data);
-              for (List<String> permutation : permutations) {
-                  String x = "";
-                  for(String item: permutation){
-                      x += item + " ";
-                  }
-                  x = x.trim();
-                  sqryList.add("STAT:[20 TO 50] ITDS:*" + x + "*");
+            List<List<String>> permutations = generatePermutations(data);
+            for (List<String> permutation : permutations) {
+              String searchString = "";
+              for(String item: permutation){
+                searchString += item + " ";
               }
+              sqryList.add("STAT:[20 TO 50] ITDS:*" + searchString.trim() + "*");
+            }
           }
           else{
             sqryList.add("STAT:[20 TO 50] ITDS:*" + sstr + "*");  
@@ -152,7 +151,7 @@ public class SearchItem extends ExtendM3Transaction {
         sqryList.add("STAT:[20 TO 50] (ITDS:" + sstr + "* OR ITNO:" + sstr + ")");
       }
       
-      if(sqryList != null && sqryList.size() > 0){
+      if(sqryList.size() > 0){
         for(String sqry: sqryList){
           Map<String, String> params = [ "SQRY": sqry]; 
           miCaller.call("MMS200MI","SearchItem", params, callback);
@@ -171,7 +170,9 @@ public class SearchItem extends ExtendM3Transaction {
       } 
 
     } else if (type.toInteger() == 2) {
+
       lstMDBREADMILstMITPOP60 = new ArrayList();
+
       String sqry = "";
       String url = "";
       Map<String,String> params;
@@ -202,7 +203,6 @@ public class SearchItem extends ExtendM3Transaction {
         JsonSlurper jsonSlurper = new JsonSlurper();
         Map<String, Object> miResponse = (Map<String, Object>) jsonSlurper.parseText(response.getContent());
         ArrayList<Map<String, Object>> results = (ArrayList<Map<String, Object>>) miResponse.get("results");
-       
         ArrayList<Map<String, String>> recordList = (ArrayList<Map<String, String>>) results[0]["records"];
         recordList.eachWithIndex { it, index ->
           Map<String, String> recordMITPOP = (Map<String, String>) it;
@@ -548,7 +548,9 @@ public class SearchItem extends ExtendM3Transaction {
     Map<String,String> map = [SUNO: suno, PUPR: pupr, PPUN: ppun];
     lstMITVEN.add(map);
   }
-  
+  /** 
+   * Api callback
+  */
   Closure<?> callback = { Map<String, String> response ->
     if (response.ITNO != null) {
       String itno = response.ITNO;
@@ -559,25 +561,25 @@ public class SearchItem extends ExtendM3Transaction {
     }
   }
   
+  /**
+   * Permutation generator methods
+   */
   private List<List<String>> generatePermutations(List<String> data) {
         List<List<String>> permutations = new ArrayList<>();
         helper(data, 0, permutations);
         return permutations;
   }
-
   private void helper(List<String> data, int index, List<List<String>> permutations) {
       if (index == data.size() - 1) {
           permutations.add(new ArrayList<>(data));
           return;
       }
-
       for (int i = index; i < data.size(); i++) {
           swap(data, index, i);
           helper(data, index + 1, permutations);
-          swap(data, index, i); // Backtrack by swapping back
+          swap(data, index, i); 
       }
   }
-
   private void swap(List<String> data, int a, int b) {
       String temp = data.get(a);
       data.set(a, data.get(b));
