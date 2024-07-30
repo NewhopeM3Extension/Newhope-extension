@@ -63,12 +63,18 @@ public class UpdPOReqTxt extends ExtendM3Transaction {
   private String faci;
   private String prno;
   private String txid;
+  private String txi2;
   private String tfil;
   private String txvr;
+  private String txvr2;
   private String lncd;
-      
+  private String lncd2;
+  private String txvrMMOMAT;
+  private String lncdMMOMAT;
   private String txidMMOMAT;
   private String txidMPOPLP;
+  private String txvrMPOPLP;
+  private String lncdMPOPLP;
   
   private int XXCONO;
   private int currentDate;
@@ -105,6 +111,10 @@ public class UpdPOReqTxt extends ExtendM3Transaction {
 		txid = mi.inData.get("TXID") == null ? '' : mi.inData.get("TXID").trim();
 		if (txid == "?") {
 			txid = "";
+		}
+		txi2 = mi.inData.get("TXI2") == null ? '' : mi.inData.get("TXI2").trim();
+		if (txi2 == "?") {
+			txi2 = "";
 		}
 		
 		stringList = new ArrayList<String>();
@@ -163,25 +173,18 @@ public class UpdPOReqTxt extends ExtendM3Transaction {
     * Delte old text block if exists / assigned to MPOPLP
     */
     int txidMPOPLPInt = !isStringNullOrEmpty(txidMPOPLP) ? txidMPOPLP.toInteger() : 0;
-    if(txid.toInteger() != txidMPOPLPInt){
+    if(txi2.toInteger() != txidMPOPLPInt){
       if(txidMPOPLPInt > 0){
-        
-        String txvrMPOPLP = "";
-        String lncdMPOPLP = "";
-        Map<String,String> paramsLstTxtBlocksMPOPLP = ["CONO": XXCONO.toString(), "TXID": txidMPOPLP, "TFIL": tfil];
+        Map<String,String> paramsLstTxtBlocksMPOPLP = ["CONO": XXCONO.toString(), "TXID": txidMPOPLP.trim(), "TFIL": tfil];
         miCaller.setListMaxRecords(1);
-        miCaller.call("CRS980MI","LstTxtBlocks", paramsLstTxtBlocksMPOPLP, { Map<String, String> response ->
-          txvrMPOPLP = response.TXVR;
-          lncdMPOPLP = response.LNCD;
-        });
+        miCaller.call("CRS980MI","LstTxtBlocks", paramsLstTxtBlocksMPOPLP, callbackLstTxtBlocksMPOPLP);
         if(!isStringNullOrEmpty(lncdMPOPLP)){
-          paramsLstTxtBlocksMPOPLP.put("LNCD",lncdMPOPLP.trim());
+          paramsLstTxtBlocksMPOPLP.put("LNCD", lncdMPOPLP.trim());
         }
         if(!isStringNullOrEmpty(txvrMPOPLP)){
-          paramsLstTxtBlocksMPOPLP.put("TXVR", txvrMPOPLP.trim());
-        }
-        miCaller.call("CRS980MI","DltTxtBlockLins", paramsLstTxtBlocksMPOPLP, {});
-        
+          paramsLstTxtBlocksMPOPLP.put("TXVR", txvrMPOPLP);
+        } 
+        miCaller.call("CRS980MI","DltTxtBlockLins", paramsLstTxtBlocksMPOPLP, {});        
       }
     }
     
@@ -190,73 +193,24 @@ public class UpdPOReqTxt extends ExtendM3Transaction {
     */
     int txidMMOMATInt = !isStringNullOrEmpty(txidMMOMAT) ? txidMMOMAT.toInteger() : 0;
     if(txid.toInteger() != txidMMOMATInt){
-      if((txidMMOMATInt > 0 && txidMPOPLPInt == 0) || (txidMPOPLPInt > 0 && txidMMOMATInt > 0 && txidMMOMATInt != txidMPOPLPInt)){
+      if((txidMMOMATInt > 0)){
         String txvrMMOMAT = "";
         String lncdMMOMAT = "";
-        Map<String,String> paramsLstTxtBlocksMMOMAT = ["CONO": XXCONO.toString(), "TXID": txidMMOMAT, "TFIL": tfil];
+        Map<String,String> paramsLstTxtBlocksMMOMAT = ["CONO": XXCONO.toString(), "TXID": txidMMOMAT.trim(), "TFIL": tfil];
         miCaller.setListMaxRecords(1);
-        miCaller.call("CRS980MI","LstTxtBlocks", paramsLstTxtBlocksMMOMAT, { Map<String, String> response ->
-          txvrMMOMAT = response.TXVR;
-          lncdMMOMAT = response.LNCD;
-        });
+        miCaller.call("CRS980MI","LstTxtBlocks", paramsLstTxtBlocksMMOMAT, callbackLstTxtBlocksMMOMAT);
         if(!isStringNullOrEmpty(lncdMMOMAT)){
-          paramsLstTxtBlocksMMOMAT.put("LNCD",lncdMMOMAT.trim());
+          paramsLstTxtBlocksMMOMAT.put("LNCD", lncdMMOMAT.trim());
         }
         if(!isStringNullOrEmpty(txvrMMOMAT)){
-          paramsLstTxtBlocksMMOMAT.put("TXVR", txvrMMOMAT.trim());
+          paramsLstTxtBlocksMMOMAT.put("TXVR", txvrMMOMAT);
         }
         miCaller.call("CRS980MI","DltTxtBlockLins", paramsLstTxtBlocksMMOMAT, {});
       }
     }
-
 	}
 	
-  /****
-  * CALLBACKS
-  */
 
-  Closure<?> callbackMPOPLP = { LockedResult MPOPLP ->
-    int chno = MPOPLP.get("POCHNO").toString().toInteger();
-    String pitt = MPOPLP.get("POPITT").toString();
-    MPOPLP.set("POPTXT", pitt);
-    MPOPLP.set("POTXID", Long.parseLong(txid));
-    MPOPLP.set("POCHID", program.getUser());
-    MPOPLP.set("POCHNO", chno + 1);
-    MPOPLP.set("POLMDT", currentDate);
-    MPOPLP.update();    
-  }
-  
-  Closure<?> callbackMMOMAT = { LockedResult MMOMAT ->
-    int chno = MMOMAT.get("QMCHNO").toString().toInteger();
-    MMOMAT.set("QMTXID", Long.parseLong(txid));
-    MMOMAT.set("QMCHID", program.getUser());
-    MMOMAT.set("QMCHNO", chno + 1);
-    MMOMAT.set("QMLMDT", currentDate);
-    MMOMAT.update();    
-  }
-  
-	Closure<?> callbackGetPlannedPO = { Map<String, String> response ->
-    rorn = response.RORN.trim();
-    rorl = response.RORL.trim();
-    itno = response.ITNO.trim();
-    faci = response.FACI.trim();
-  }
-
-  Closure<?> callbackMPOPLPGet = { LockedResult MPOPLP ->
-    txidMPOPLP = MPOPLP.get("POTXID").toString().trim();
-  }
-  
-  Closure<?> callbackGetMtrl = { Map<String, String> response ->
-    prno = response.PRNO;
-    txidMMOMAT = isStringNullOrEmpty(response.TXID) ? "" : response.TXID.trim();
-  }
-  
-  Closure<?> callbackLstTxtBlocks = { Map<String, String> response ->
-    txvr = response.TXVR;
-    lncd = response.LNCD;
-  }
-  
-  
   /***
   * validateInput - Validate all the input fields
   * @return false if there is any error
@@ -284,6 +238,11 @@ public class UpdPOReqTxt extends ExtendM3Transaction {
       return false;
     }
     
+    if(isStringNullOrEmpty(txi2)){
+      mi.error("TXI2 not supplied");
+      return false;
+    }
+    
     /***
     * Validate the purchase order via input variable plpn, plps, PLP2
     * are correct, and reference an actual PO proposal.
@@ -300,6 +259,21 @@ public class UpdPOReqTxt extends ExtendM3Transaction {
       mi.error("Reference not exist on requisition");
       return false;
     }
+    
+    /***
+    * Validate the textid exists in database.
+    */
+    Map<String,String> paramsLstTxtBlocks = ["CONO": XXCONO.toString(), "TXID": txid, "TFIL": tfil];
+    miCaller.setListMaxRecords(1);
+    miCaller.call("CRS980MI","LstTxtBlocks", paramsLstTxtBlocks, callbackLstTxtBlocks);
+    txvr = "";
+    
+    /***
+    * Validate the textid2 exists in database.
+    */
+    Map<String,String> paramsLstTxtBlocks2 = ["CONO": XXCONO.toString(), "TXID": txi2, "TFIL": tfil];
+    miCaller.setListMaxRecords(1);
+    miCaller.call("CRS980MI","LstTxtBlocks", paramsLstTxtBlocks2, callbackLstTxtBlocks2);
 
     /****
     * CALLING DATABASE MPOPLP FOR TXID, cant retrieve from PPS170MI
@@ -317,17 +291,6 @@ public class UpdPOReqTxt extends ExtendM3Transaction {
        return;
     }
      
-    /***
-    * Validate the textid exists in database.
-    */
-    Map<String,String> paramsLstTxtBlocks = ["CONO": XXCONO.toString(), "TXID": txid, "TFIL": tfil];
-    miCaller.setListMaxRecords(1);
-    miCaller.call("CRS980MI","LstTxtBlocks", paramsLstTxtBlocks, callbackLstTxtBlocks);
-    if(isStringNullOrEmpty(txvr) || txvr != rorn){
-      mi.error("Error, text block txvr != mwno");
-      return;
-    }
-    
     /****
     * Validate work order, retrieve faci, prno for parameter set
     * Use the retrieved values from PlannedPO api call to Validate
@@ -342,6 +305,67 @@ public class UpdPOReqTxt extends ExtendM3Transaction {
      
     return true;
     
+  }
+
+
+  /****
+  * CALLBACKS
+  */
+  Closure<?> callbackMPOPLP = { LockedResult MPOPLP ->
+    int chno = MPOPLP.get("POCHNO").toString().toInteger();
+    String pitt = MPOPLP.get("POPITT").toString();
+    MPOPLP.set("POPTXT", pitt);
+    MPOPLP.set("POTXID", Long.parseLong(txid));
+    MPOPLP.set("POCHID", program.getUser());
+    MPOPLP.set("POCHNO", chno + 1);
+    MPOPLP.set("POLMDT", currentDate);
+    MPOPLP.update();    
+  }
+  
+  Closure<?> callbackMMOMAT = { LockedResult MMOMAT ->
+    int chno = MMOMAT.get("QMCHNO").toString().toInteger();
+    MMOMAT.set("QMTXID", Long.parseLong(txid));
+    MMOMAT.set("QMCHID", program.getUser());
+    MMOMAT.set("QMCHNO", chno + 1);
+    MMOMAT.set("QMLMDT", currentDate);
+    MMOMAT.update();    
+  }
+  
+  Closure<?> callbackMPOPLPGet = { LockedResult MPOPLP ->
+    String potxid = MPOPLP.get("POTXID").toString();
+    txidMPOPLP = isStringNullOrEmpty(potxid) ? "" : potxid.trim();
+  }
+  
+	Closure<?> callbackGetPlannedPO = { Map<String, String> response ->
+    rorn = response.RORN.trim();
+    rorl = response.RORL.trim();
+    itno = response.ITNO.trim();
+    faci = response.FACI.trim();
+  }
+  
+  Closure<?> callbackGetMtrl = { Map<String, String> response ->
+    prno = response.PRNO;
+    txidMMOMAT = isStringNullOrEmpty(response.TXID) ? "" : response.TXID.trim();
+  }
+  
+  Closure<?> callbackLstTxtBlocksMPOPLP = { Map<String, String> response ->
+    txvrMPOPLP = response.TXVR;
+    lncdMPOPLP = response.LNCD;
+  }
+  
+  Closure<?> callbackLstTxtBlocksMMOMAT = { Map<String, String> response ->
+    txvrMMOMAT = response.TXVR;
+    lncdMMOMAT = response.LNCD;
+  }
+  
+  Closure<?> callbackLstTxtBlocks = { Map<String, String> response ->
+    txvr = response.TXVR;
+    lncd = response.LNCD;
+  }
+  
+  Closure<?> callbackLstTxtBlocks2 = { Map<String, String> response ->
+    txvr2 = response.TXVR;
+    lncd2 = response.LNCD;
   }
     
   /***********
