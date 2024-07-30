@@ -173,41 +173,38 @@ public class UpdPOReqTxt extends ExtendM3Transaction {
     * Delte old text block if exists / assigned to MPOPLP
     */
     int txidMPOPLPInt = !isStringNullOrEmpty(txidMPOPLP) ? txidMPOPLP.toInteger() : 0;
-    if(txi2.toInteger() != txidMPOPLPInt){
-      if(txidMPOPLPInt > 0){
-        Map<String,String> paramsLstTxtBlocksMPOPLP = ["CONO": XXCONO.toString(), "TXID": txidMPOPLP.trim(), "TFIL": tfil];
-        miCaller.setListMaxRecords(1);
-        miCaller.call("CRS980MI","LstTxtBlocks", paramsLstTxtBlocksMPOPLP, callbackLstTxtBlocksMPOPLP);
-        if(!isStringNullOrEmpty(lncdMPOPLP)){
-          paramsLstTxtBlocksMPOPLP.put("LNCD", lncdMPOPLP.trim());
-        }
-        if(!isStringNullOrEmpty(txvrMPOPLP)){
-          paramsLstTxtBlocksMPOPLP.put("TXVR", txvrMPOPLP);
-        } 
-        miCaller.call("CRS980MI","DltTxtBlockLins", paramsLstTxtBlocksMPOPLP, {});        
+    if(txidMPOPLPInt > 0){
+      Map<String,String> paramsLstTxtBlocksMPOPLP = ["CONO": XXCONO.toString(), "TXID": txidMPOPLP.trim(), "TFIL": tfil];
+      miCaller.setListMaxRecords(1);
+      miCaller.call("CRS980MI","LstTxtBlocks", paramsLstTxtBlocksMPOPLP, callbackLstTxtBlocksMPOPLP);
+      if(!isStringNullOrEmpty(lncdMPOPLP)){
+        paramsLstTxtBlocksMPOPLP.put("LNCD", lncdMPOPLP.trim());
       }
+      if(!isStringNullOrEmpty(txvrMPOPLP)){
+        paramsLstTxtBlocksMPOPLP.put("TXVR", txvrMPOPLP);
+      } 
+      miCaller.call("CRS980MI","DltTxtBlockLins", paramsLstTxtBlocksMPOPLP, {});        
     }
-    
+
     /****
     * Delte old text block if exists / assigned to MMOMAT and isnt the same as previously deleted 
     */
     int txidMMOMATInt = !isStringNullOrEmpty(txidMMOMAT) ? txidMMOMAT.toInteger() : 0;
-    if(txid.toInteger() != txidMMOMATInt){
-      if((txidMMOMATInt > 0)){
-        String txvrMMOMAT = "";
-        String lncdMMOMAT = "";
-        Map<String,String> paramsLstTxtBlocksMMOMAT = ["CONO": XXCONO.toString(), "TXID": txidMMOMAT.trim(), "TFIL": tfil];
-        miCaller.setListMaxRecords(1);
-        miCaller.call("CRS980MI","LstTxtBlocks", paramsLstTxtBlocksMMOMAT, callbackLstTxtBlocksMMOMAT);
-        if(!isStringNullOrEmpty(lncdMMOMAT)){
-          paramsLstTxtBlocksMMOMAT.put("LNCD", lncdMMOMAT.trim());
-        }
-        if(!isStringNullOrEmpty(txvrMMOMAT)){
-          paramsLstTxtBlocksMMOMAT.put("TXVR", txvrMMOMAT);
-        }
-        miCaller.call("CRS980MI","DltTxtBlockLins", paramsLstTxtBlocksMMOMAT, {});
+    if((txidMMOMATInt > 0)){
+      String txvrMMOMAT = "";
+      String lncdMMOMAT = "";
+      Map<String,String> paramsLstTxtBlocksMMOMAT = ["CONO": XXCONO.toString(), "TXID": txidMMOMAT.trim(), "TFIL": tfil];
+      miCaller.setListMaxRecords(1);
+      miCaller.call("CRS980MI","LstTxtBlocks", paramsLstTxtBlocksMMOMAT, callbackLstTxtBlocksMMOMAT);
+      if(!isStringNullOrEmpty(lncdMMOMAT)){
+        paramsLstTxtBlocksMMOMAT.put("LNCD", lncdMMOMAT.trim());
       }
+      if(!isStringNullOrEmpty(txvrMMOMAT)){
+        paramsLstTxtBlocksMMOMAT.put("TXVR", txvrMMOMAT);
+      }
+      miCaller.call("CRS980MI","DltTxtBlockLins", paramsLstTxtBlocksMMOMAT, {});
     }
+
 	}
 	
 
@@ -240,6 +237,11 @@ public class UpdPOReqTxt extends ExtendM3Transaction {
     
     if(isStringNullOrEmpty(txi2)){
       mi.error("TXI2 not supplied");
+      return false;
+    }
+
+    if(txid == txi2){
+      mi.error("TXID cannot equal TXI2");
       return false;
     }
     
