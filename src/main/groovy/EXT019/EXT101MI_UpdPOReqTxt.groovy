@@ -48,7 +48,6 @@ public class UpdPOReqTxt extends ExtendM3Transaction {
   private final DatabaseAPI database;
   private final LoggerAPI logger;
   private final ProgramAPI program;
-  private final IonAPI ion;
   private final MICallerAPI miCaller;
 
   private String cono;  
@@ -68,7 +67,7 @@ public class UpdPOReqTxt extends ExtendM3Transaction {
   private String txvr;
   private String lncd;
       
-  private String txidMWOMAT;
+  private String txidMMOMAT;
   private String txidMPOPLP;
   
   private int XXCONO;
@@ -77,12 +76,11 @@ public class UpdPOReqTxt extends ExtendM3Transaction {
   
   List<String> stringList;
 
-	public UpdPOReqTxt(MIAPI mi, DatabaseAPI database,  LoggerAPI logger, ProgramAPI program, IonAPI ion, MICallerAPI miCaller) {
+	public UpdPOReqTxt(MIAPI mi, DatabaseAPI database,  LoggerAPI logger, ProgramAPI program, MICallerAPI miCaller) {
 		this.mi = mi;
 		this.database = database;
 		this.logger = logger;
 		this.program = program;
-		this.ion = ion;
 		this.miCaller = miCaller;
 	}
 
@@ -160,51 +158,63 @@ public class UpdPOReqTxt extends ExtendM3Transaction {
        mi.error("Record does not exists MPOPLP " + plpn + " " + plps + " " + plp2 );
        return;
     }
-
     
+    /****
+    * Delte old text block if exists / assigned to MPOPLP
+    */
     int txidMPOPLPInt = !isStringNullOrEmpty(txidMPOPLP) ? txidMPOPLP.toInteger() : 0;
-    int txidMMOMATInt = !isStringNullOrEmpty(txidMWOMAT) ? txidMWOMAT.toInteger() : 0;
-    
-    if(txidMPOPLPInt > 0){
-      
-      String txvrMPOPLP = "";
-      String lncdMPOPLP = "";
-      Map<String,String> paramsLstTxtBlocks = ["CONO": XXCONO.toString(), "TXID": txid, "TFIL": tfil];
-      miCaller.setListMaxRecords(1);
-      miCaller.call("CRS980MI","LstTxtBlocks", paramsLstTxtBlocks, { Map<String, String> response ->
-        txvrMPOPLP = isStringNullOrEmpty(response.TXVR) ? "" : response.TXVR.trim();
-        lncdMPOPLP = isStringNullOrEmpty(response.LNCD) ? "" : response.LNCD.trim();
-      });
-      
-      paramsLstTxtBlocks.put("LNCD",lncdMPOPLP);
-      paramsLstTxtBlocks.put("TXVR", txvrMPOPLP);
-      miCaller.call("CRS980MI","DltTxtBlockLins", paramsLstTxtBlocks, {});
-      
+    if(txid.toInteger() != txidMPOPLPInt){
+      if(txidMPOPLPInt > 0){
+        
+        String txvrMPOPLP = "";
+        String lncdMPOPLP = "";
+        Map<String,String> paramsLstTxtBlocksMPOPLP = ["CONO": XXCONO.toString(), "TXID": txidMPOPLP, "TFIL": tfil];
+        miCaller.setListMaxRecords(1);
+        miCaller.call("CRS980MI","LstTxtBlocks", paramsLstTxtBlocksMPOPLP, { Map<String, String> response ->
+          txvrMPOPLP = response.TXVR;
+          lncdMPOPLP = response.LNCD;
+        });
+        if(!isStringNullOrEmpty(lncdMPOPLP)){
+          paramsLstTxtBlocksMPOPLP.put("LNCD",lncdMPOPLP.trim());
+        }
+        if(!isStringNullOrEmpty(txvrMPOPLP)){
+          paramsLstTxtBlocksMPOPLP.put("TXVR", txvrMPOPLP.trim());
+        }
+        miCaller.call("CRS980MI","DltTxtBlockLins", paramsLstTxtBlocksMPOPLP, {});
+        
+      }
     }
     
-    
-    if((txidMMOMATInt > 0 && txidMPOPLPInt == 0) || (txidMPOPLPInt > 0 && txidMMOMATInt > 0 && txidMMOMATInt != txidMPOPLPInt)){
-      
-      String txvrMMOMAT = "";
-      String lncdMMOMAT = "";
-      Map<String,String> paramsLstTxtBlocks = ["CONO": XXCONO.toString(), "TXID": txid, "TFIL": tfil];
-      miCaller.setListMaxRecords(1);
-      miCaller.call("CRS980MI","LstTxtBlocks", paramsLstTxtBlocks, { Map<String, String> response ->
-        txvrMMOMAT = response.TXVR;
-        lncdMMOMAT = response.LNCD;
-      });
-
-      paramsLstTxtBlocks.put("LNCD",lncdMMOMAT);
-      paramsLstTxtBlocks.put("TXVR", txvrMMOMAT);
-      miCaller.call("CRS980MI","DltTxtBlockLins", paramsLstTxtBlocks, {});
+    /****
+    * Delte old text block if exists / assigned to MMOMAT and isnt the same as previously deleted 
+    */
+    int txidMMOMATInt = !isStringNullOrEmpty(txidMMOMAT) ? txidMMOMAT.toInteger() : 0;
+    if(txid.toInteger() != txidMMOMATInt){
+      if((txidMMOMATInt > 0 && txidMPOPLPInt == 0) || (txidMPOPLPInt > 0 && txidMMOMATInt > 0 && txidMMOMATInt != txidMPOPLPInt)){
+        String txvrMMOMAT = "";
+        String lncdMMOMAT = "";
+        Map<String,String> paramsLstTxtBlocksMMOMAT = ["CONO": XXCONO.toString(), "TXID": txidMMOMAT, "TFIL": tfil];
+        miCaller.setListMaxRecords(1);
+        miCaller.call("CRS980MI","LstTxtBlocks", paramsLstTxtBlocksMMOMAT, { Map<String, String> response ->
+          txvrMMOMAT = response.TXVR;
+          lncdMMOMAT = response.LNCD;
+        });
+        if(!isStringNullOrEmpty(lncdMMOMAT)){
+          paramsLstTxtBlocksMMOMAT.put("LNCD",lncdMMOMAT.trim());
+        }
+        if(!isStringNullOrEmpty(txvrMMOMAT)){
+          paramsLstTxtBlocksMMOMAT.put("TXVR", txvrMMOMAT.trim());
+        }
+        miCaller.call("CRS980MI","DltTxtBlockLins", paramsLstTxtBlocksMMOMAT, {});
+      }
     }
-    
 
 	}
 	
   /****
   * CALLBACKS
   */
+
   Closure<?> callbackMPOPLP = { LockedResult MPOPLP ->
     int chno = MPOPLP.get("POCHNO").toString().toInteger();
     String pitt = MPOPLP.get("POPITT").toString();
@@ -224,25 +234,21 @@ public class UpdPOReqTxt extends ExtendM3Transaction {
     MMOMAT.set("QMLMDT", currentDate);
     MMOMAT.update();    
   }
-
-  /*
-  * deleteEXTMAT - Callback function to update MPOPLP table
-  */
-  Closure deleteEXTMAT = { LockedResult EXTMAT ->
-    EXTMAT.delete();
-  }
   
 	Closure<?> callbackGetPlannedPO = { Map<String, String> response ->
     rorn = response.RORN.trim();
     rorl = response.RORL.trim();
     itno = response.ITNO.trim();
     faci = response.FACI.trim();
-    txidMPOPLP = isStringNullOrEmpty(response.TXID) ? "" : response.TXID.trim();
+  }
+
+  Closure<?> callbackMPOPLPGet = { LockedResult MPOPLP ->
+    txidMPOPLP = MPOPLP.get("POTXID").toString().trim();
   }
   
   Closure<?> callbackGetMtrl = { Map<String, String> response ->
     prno = response.PRNO;
-    txidMWOMAT = isStringNullOrEmpty(response.TXID) ? "" : response.TXID.trim();
+    txidMMOMAT = isStringNullOrEmpty(response.TXID) ? "" : response.TXID.trim();
   }
   
   Closure<?> callbackLstTxtBlocks = { Map<String, String> response ->
@@ -259,14 +265,14 @@ public class UpdPOReqTxt extends ExtendM3Transaction {
   boolean validateInput(){
 
     if (!cono.isEmpty() ){
-        if (cono.isInteger()){
-          XXCONO = cono.toInteger();
-        } else {
-          mi.error("Company " + cono + " is invalid");
-          return false;
-        }
+      if (cono.isInteger()){
+        XXCONO = cono.toInteger();
+      } else {
+        mi.error("Company " + cono + " is invalid");
+        return false;
+      }
     } else {
-        XXCONO= program.LDAZD.CONO;
+      XXCONO= program.LDAZD.CONO;
     }
 
     /**** 
@@ -293,6 +299,22 @@ public class UpdPOReqTxt extends ExtendM3Transaction {
     if(isStringNullOrEmpty(rorn) || isStringNullOrEmpty(rorl) || isStringNullOrEmpty(itno) || isStringNullOrEmpty(faci)){
       mi.error("Reference not exist on requisition");
       return false;
+    }
+
+    /****
+    * CALLING DATABASE MPOPLP FOR TXID, cant retrieve from PPS170MI
+    */
+    DBAction actionMPOPLP = database.table("MPOPLP")
+      .index("00")
+      .build();
+    DBContainer MPOPLP = actionMPOPLP.getContainer();
+    MPOPLP.set("POCONO", XXCONO.toInteger());
+    MPOPLP.set("POPLPN", plpn.toInteger());
+    MPOPLP.set("POPLPS", plps.toInteger());
+    MPOPLP.set("POPLP2", plp2.toInteger());
+    if (!actionMPOPLP.readLock(MPOPLP, callbackMPOPLPGet)){
+       mi.error("Record does not exists MPOPLP " + plpn + " " + plps + " " + plp2 );
+       return;
     }
      
     /***
