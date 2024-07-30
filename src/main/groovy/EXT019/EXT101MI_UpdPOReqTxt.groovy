@@ -35,6 +35,8 @@ import groovy.json.JsonSlurper;
 *Modification area - M3
 *Nbr                Date      User id   Description
 *EXT101_UpdPOReqTxt 20240723  RMURRAY   API created to update PPS180 (MPOPLP) and MOS101 (MMOMAT) TXID value with the TXID created from spares portal for text lines between 60 and 300 characters.
+*EXT101_UpdPOReqTxt 20240730  RMURRAY   Changed calls from ion to use micaller. Added validation of input textblockid TXID validated TXVR as MWNO. Check if MMOMAT and MPOPLP has existing TXID, and delete after being replaced. 
+*                                       Removed delete of record from EXTMAT as it no longer requires the record, and is removed prior to this step by the portal executing EXT101MI_DelWOPart.
 */
 
 /*
@@ -47,12 +49,12 @@ public class UpdPOReqTxt extends ExtendM3Transaction {
   private final LoggerAPI logger;
   private final ProgramAPI program;
   private final IonAPI ion;
+  private final MICallerAPI miCaller;
 
   private String cono;  
   private String plpn;
   private String plps;
   private String plp2;
-  private String lino;
   private String ztxt;
   
   private String rorn;
@@ -62,6 +64,12 @@ public class UpdPOReqTxt extends ExtendM3Transaction {
   private String faci;
   private String prno;
   private String txid;
+  private String tfil;
+  private String txvr;
+  private String lncd;
+      
+  private String txidMWOMAT;
+  private String txidMPOPLP;
   
   private int XXCONO;
   private int currentDate;
@@ -69,12 +77,13 @@ public class UpdPOReqTxt extends ExtendM3Transaction {
   
   List<String> stringList;
 
-	public UpdPOReqTxt(MIAPI mi, DatabaseAPI database,  LoggerAPI logger, ProgramAPI program, IonAPI ion) {
+	public UpdPOReqTxt(MIAPI mi, DatabaseAPI database,  LoggerAPI logger, ProgramAPI program, IonAPI ion, MICallerAPI miCaller) {
 		this.mi = mi;
 		this.database = database;
 		this.logger = logger;
 		this.program = program;
 		this.ion = ion;
+		this.miCaller = miCaller;
 	}
 
 	public void main() {
@@ -99,12 +108,9 @@ public class UpdPOReqTxt extends ExtendM3Transaction {
 		if (txid == "?") {
 			txid = "";
 		}
-    lino = mi.inData.get("LINO") == null ? '' : mi.inData.get("LINO").trim();
-		if (lino == "?") {
-			lino = "";
-		} 
 		
 		stringList = new ArrayList<String>();
+		tfil = "MSYTXH";
 		
 		if (!validateInput()) {
 			return;
@@ -113,9 +119,6 @@ public class UpdPOReqTxt extends ExtendM3Transaction {
 		ZoneId zid = ZoneId.of("Australia/Sydney"); 
 		currentDate = LocalDate.now(zid).format(DateTimeFormatter.ofPattern("yyyyMMdd")).toInteger();
 		currentTime = Integer.valueOf(LocalDateTime.now().format(DateTimeFormatter.ofPattern("HHmmss")));
-		
-    Map<String,String> headers = ["Accept": "application/json"];
-    Map<String, String> params = new HashMap<String,String>();
     
     /***
      * ASSIGN TO WORK ORDER MATERIAL VIA MOS100MI_ChgMtrl, 
@@ -157,30 +160,52 @@ public class UpdPOReqTxt extends ExtendM3Transaction {
        mi.error("Record does not exists MPOPLP " + plpn + " " + plps + " " + plp2 );
        return;
     }
+
     
-    /***
-     * ASSIGN TO PURCHASE ORDER REQUISITION MPOPLP VIA DB UPDATE
-    */
-    DBAction actionEXTMAT = database.table("EXTMAT")
-       .index("00")
-       .build();
-    DBContainer EXTMAT = actionEXTMAT.getContainer();
-    EXTMAT.set("EXCONO", XXCONO.toInteger());
-    EXTMAT.set("EXFACI", faci);
-    EXTMAT.set("EXPRNO", prno);
-    EXTMAT.set("EXMWNO", plpn);
-    EXTMAT.set("EXLINO", lino.toInteger())
-    if (!actionEXTMAT.readLock(EXTMAT, deleteEXTMAT)){
-       mi.error("Record does not exists EXTMAT " + faci + " " + prno + " " + plpn + " " + lino );
-       return;
+    int txidMPOPLPInt = !isStringNullOrEmpty(txidMPOPLP) ? txidMPOPLP.toInteger() : 0;
+    int txidMMOMATInt = !isStringNullOrEmpty(txidMWOMAT) ? txidMWOMAT.toInteger() : 0;
+    
+    if(txidMPOPLPInt > 0){
+      
+      String txvrMPOPLP = "";
+      String lncdMPOPLP = "";
+      Map<String,String> paramsLstTxtBlocks = ["CONO": XXCONO.toString(), "TXID": txid, "TFIL": tfil];
+      miCaller.setListMaxRecords(1);
+      miCaller.call("CRS980MI","LstTxtBlocks", paramsLstTxtBlocks, { Map<String, String> response ->
+        txvrMPOPLP = isStringNullOrEmpty(response.TXVR) ? "" : response.TXVR.trim();
+        lncdMPOPLP = isStringNullOrEmpty(response.LNCD) ? "" : response.LNCD.trim();
+      });
+      
+      paramsLstTxtBlocks.put("LNCD",lncdMPOPLP);
+      paramsLstTxtBlocks.put("TXVR", txvrMPOPLP);
+      miCaller.call("CRS980MI","DltTxtBlockLins", paramsLstTxtBlocks, {});
+      
     }
+    
+    
+    if((txidMMOMATInt > 0 && txidMPOPLPInt == 0) || (txidMPOPLPInt > 0 && txidMMOMATInt > 0 && txidMMOMATInt != txidMPOPLPInt)){
+      
+      String txvrMMOMAT = "";
+      String lncdMMOMAT = "";
+      Map<String,String> paramsLstTxtBlocks = ["CONO": XXCONO.toString(), "TXID": txid, "TFIL": tfil];
+      miCaller.setListMaxRecords(1);
+      miCaller.call("CRS980MI","LstTxtBlocks", paramsLstTxtBlocks, { Map<String, String> response ->
+        txvrMMOMAT = response.TXVR;
+        lncdMMOMAT = response.LNCD;
+      });
+
+      paramsLstTxtBlocks.put("LNCD",lncdMMOMAT);
+      paramsLstTxtBlocks.put("TXVR", txvrMMOMAT);
+      miCaller.call("CRS980MI","DltTxtBlockLins", paramsLstTxtBlocks, {});
+    }
+    
 
 	}
 	
   /****
   * CALLBACKS
   */
-  Closure callbackMPOPLP = { LockedResult MPOPLP ->
+  Closure<?> callbackMPOPLP = { LockedResult MPOPLP ->
     int chno = MPOPLP.get("POCHNO").toString().toInteger();
     String pitt = MPOPLP.get("POPITT").toString();
     MPOPLP.set("POPTXT", pitt);
@@ -191,7 +216,7 @@ public class UpdPOReqTxt extends ExtendM3Transaction {
     MPOPLP.update();    
   }
   
-  Closure callbackMMOMAT = { LockedResult MMOMAT ->
+  Closure<?> callbackMMOMAT = { LockedResult MMOMAT ->
     int chno = MMOMAT.get("QMCHNO").toString().toInteger();
     MMOMAT.set("QMTXID", Long.parseLong(txid));
     MMOMAT.set("QMCHID", program.getUser());
@@ -206,6 +231,25 @@ public class UpdPOReqTxt extends ExtendM3Transaction {
   Closure deleteEXTMAT = { LockedResult EXTMAT ->
     EXTMAT.delete();
   }
+  
+	Closure<?> callbackGetPlannedPO = { Map<String, String> response ->
+    rorn = response.RORN.trim();
+    rorl = response.RORL.trim();
+    itno = response.ITNO.trim();
+    faci = response.FACI.trim();
+    txidMPOPLP = isStringNullOrEmpty(response.TXID) ? "" : response.TXID.trim();
+  }
+  
+  Closure<?> callbackGetMtrl = { Map<String, String> response ->
+    prno = response.PRNO;
+    txidMWOMAT = isStringNullOrEmpty(response.TXID) ? "" : response.TXID.trim();
+  }
+  
+  Closure<?> callbackLstTxtBlocks = { Map<String, String> response ->
+    txvr = response.TXVR;
+    lncd = response.LNCD;
+  }
+  
   
   /***
   * validateInput - Validate all the input fields
@@ -234,91 +278,48 @@ public class UpdPOReqTxt extends ExtendM3Transaction {
       return false;
     }
     
-    /*
-    * Validate Textblock Exists
-    */
-    Map<String,String> headers = ["Accept": "application/json"];
-    Map<String,String> params = new HashMap<String,String>();
-    
     /***
     * Validate the purchase order via input variable plpn, plps, PLP2
     * are correct, and reference an actual PO proposal.
     */
-    params = new HashMap<String,String>();
-    params.put("CONO", XXCONO.toString());
-    params.put("PLPN", plpn);
-    params.put("PLPS", plps);
-    params.put("PLP2", plp2);
-    String url = "/M3/m3api-rest/v2/execute/PPS170MI/GetPlannedPO";
-    IonResponse responseGetPlannedPO = ion.get(url, headers, params);
-    if(responseGetPlannedPO.getError()){
-        logger.debug("Failed calling ION API ${url}, detailed error message: ${responseGetPlannedPO.getErrorMessage()}");
-        mi.error("calling api failed ${url} " + responseGetPlannedPO.getErrorMessage());
-        return false;
-    }
-    /***
-    * Validation on return of row.
-    */
-    if (responseGetPlannedPO.getStatusCode() == 200) {
-        JsonSlurper jsonSlurper = new JsonSlurper();
-        Map<String, Object> miResponse = (Map<String, Object>) jsonSlurper.parseText(responseGetPlannedPO.getContent());
-        ArrayList<Map<String, Object>> results = (ArrayList<Map<String, Object>>) miResponse.get("results");
-        ArrayList<Map<String, String>> recordList = (ArrayList<Map<String, String>>) results[0]["records"];
-        recordList.eachWithIndex { it, index ->
-          Map<String, String> record = (Map<String, String>) it;
-          rorn = record.RORN;
-          rorl = record.RORL;
-          itno = record.ITNO;
-          faci = record.FACI;
-        }
-    }
+    Map<String,String> paramsGetPlannedPO = ["CONO": XXCONO.toString(), "PLPN": plpn, "PLPS": plps, "PLP2": plp2];
+    miCaller.setListMaxRecords(1);
+    miCaller.call("PPS170MI","GetPlannedPO", paramsGetPlannedPO, callbackGetPlannedPO);
+    
     /***
     * Failure if any of the following rorn, rorl, itno, faci are null
     * Unable to continue without reference work order numbers
     */
     if(isStringNullOrEmpty(rorn) || isStringNullOrEmpty(rorl) || isStringNullOrEmpty(itno) || isStringNullOrEmpty(faci)){
-        mi.error("Reference not exist on requisition");
-        return false;
+      mi.error("Reference not exist on requisition");
+      return false;
     }
-
+     
+    /***
+    * Validate the textid exists in database.
+    */
+    Map<String,String> paramsLstTxtBlocks = ["CONO": XXCONO.toString(), "TXID": txid, "TFIL": tfil];
+    miCaller.setListMaxRecords(1);
+    miCaller.call("CRS980MI","LstTxtBlocks", paramsLstTxtBlocks, callbackLstTxtBlocks);
+    if(isStringNullOrEmpty(txvr) || txvr != rorn){
+      mi.error("Error, text block txvr != mwno");
+      return;
+    }
+    
     /****
     * Validate work order, retrieve faci, prno for parameter set
     * Use the retrieved values from PlannedPO api call to Validate
     * referenced order.
     */
-    params = new HashMap<String,String>();
-    params.put("MWNO", rorn);
-    params.put("MSEQ", rorl);
-    url = "/M3/m3api-rest/v2/execute/MOS100MI/GetMtrl";
-    IonResponse responseGetMtrl = ion.get(url, headers, params);
-    if(responseGetMtrl.getError()){
-        logger.debug("Failed calling ION API ${url}, detailed error message: ${responseGetMtrl.getErrorMessage()}");
-        mi.error("calling api failed ${url} " + responseGetMtrl.getErrorMessage());
-        return false;
-    }
-    /***
-    * Validation on return of row.
-    */
-    if (responseGetMtrl.getStatusCode() == 200) {
-        JsonSlurper jsonSlurper = new JsonSlurper();
-        Map<String, Object> miResponse = (Map<String, Object>) jsonSlurper.parseText(responseGetMtrl.getContent());
-        ArrayList<Map<String, Object>> results = (ArrayList<Map<String, Object>>) miResponse.get("results");
-        ArrayList<Map<String, String>> recordList = (ArrayList<Map<String, String>>) results[0]["records"];
-        recordList.eachWithIndex { it, index ->
-          Map<String, String> record = (Map<String, String>) it;
-          prno = record.PRNO;
-        }
-    }
-    /***
-    * Failure if  prno not returned from API. 
-    * PRNO is part of the index, thus mandatory.
-    */
+    Map<String,String> paramsGetMtrl = [ "MWNO": rorn, "MSEQ": rorl];
+    miCaller.call("MOS100MI","GetMtrl",paramsGetMtrl, callbackGetMtrl);
     if(isStringNullOrEmpty(prno)){
-        mi.error("Unable to retrieve prno " + rorn + " " + rorl);
-        return false;
+      mi.error("Unable to retrieve prno " + rorn + " " + rorl);
+      return false;
     }
-      
+     
     return true;
+    
   }
     
   /***********
