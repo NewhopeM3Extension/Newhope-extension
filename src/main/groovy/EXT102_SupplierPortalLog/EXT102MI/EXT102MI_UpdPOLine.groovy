@@ -154,7 +154,32 @@ public class UpdPOLine extends ExtendM3Transaction {
 		* Retrieve purchase order line information via API PPS200MI_GetLine
 		*/
     Map<String, String> paramsGetPOLine = [ "PUNO": puno,  "PNLI": pnli, "PNLS": pnls ];
-    miCaller.call("PPS001MI","GetLine", paramsGetPOLine, callbackGetPOLine);
+    miCaller.call("PPS001MI","GetLine", paramsGetPOLine, { Map<String,String> response -> 
+      itno = response.ITNO.trim();
+      suno = response.SUNO.trim();
+      orqo = response.ORQA.trim();
+      orqa = response.ORQA.trim();
+      pust = response.PUST.trim();
+      pusl = response.PUSL.trim();
+      if(!isStringNullOrEmpty(cppr)){
+        String cPPO = response.CPPR.trim();
+        if(!isStringNullOrEmpty(cPPO) && cPPO.toDouble() != cppr.toDouble()){
+          cppo = cPPO;  
+        }
+      }
+      if(!isStringNullOrEmpty(tel1)){
+        String tELO = response.TEL1.trim();
+        if(!isStringNullOrEmpty(tELO) && tELO.trim() != tel1.trim()){
+          telo = tELO;  
+        }
+      }
+      if(!isStringNullOrEmpty(codt)){
+        String cODT = response.CODT.trim();
+        if(!isStringNullOrEmpty(cODT) && cODT.toInteger() != codt.toInteger()){
+          codo = response.CODT.trim();
+        }
+      }
+    });
     
     if(isStringNullOrEmpty(itno) || isStringNullOrEmpty(pust) || isStringNullOrEmpty(pusl)){
       mi.error("Error, PO Line not found " + puno + " " + pnli + " " + pnls);
@@ -181,7 +206,7 @@ public class UpdPOLine extends ExtendM3Transaction {
       params.put("PUPR", cppr);
     }
     if(!codt.isEmpty()){
-      params.put("CODT", codt);
+      params.put("UCA2", codt);
     }
     if(!tel1.isEmpty()){
       params.put("TEL1", tel1);
@@ -194,71 +219,26 @@ public class UpdPOLine extends ExtendM3Transaction {
       return;
     }
 
-    DBAction actionMPLINE = database.table("MPLINE").index("00").build();
-    DBContainer MPLINE = actionMPLINE.getContainer();
-    MPLINE.set("IBCONO", XXCONO);
-    MPLINE.set("IBPUNO", puno);
-    MPLINE.set("IBPNLI", pnli.toInteger());
-    MPLINE.set("IBPNLS", pnls.toInteger());
-    if (!actionMPLINE.readLock(MPLINE, updateMPLINE)){
-      mi.error("Record does not exists");
-      return;
-    }
+		/*
+		* Retrieve purchase order line information via API PPS200MI_GetLine
+		*/
+    miCaller.call("PPS001MI","GetLine", paramsGetPOLine, { Map<String,String> responsePOLine ->
+      pusl = responsePOLine.PUSL.trim();
+      pust = responsePOLine.PUST.trim();
+    });
 
-    Map<String, String> paramsConfirmLine = [ "PUNO": puno,  "PNLI": pnli, "PNLS": pnls, "CODT": codt];
-    if(!isStringNullOrEmpty(cppr)){
-      paramsConfirmLine.put("CPPR", cppr);
+    if(!isStringNullOrEmpty(pusl) && pusl.toInteger() == 20){
+      Map<String, String> paramsConfirmLine = [ "PUNO": puno,  "PNLI": pnli, "PNLS": pnls, "CODT": codt];
+      if(!isStringNullOrEmpty(cppr)){
+        paramsConfirmLine.put("CPPR", cppr);
+      }
+      miCaller.call("PPS001MI","ConfirmLine", paramsConfirmLine, {});
     }
-    miCaller.call("PPS001MI","ConfirmLine", paramsConfirmLine, null);
 
 		writeEXT();
 
 	}
-	
-	
-	/*
-   * updateEXTMAT - Callback function to update EXTMAT table
-   *
-   */
-	Closure<?> updateMPLINE = { LockedResult MPLINE ->
-    ZoneId zid = ZoneId.of("Australia/Sydney"); 
-    int currentDate = LocalDate.now(zid).format(DateTimeFormatter.ofPattern("yyyyMMdd")).toInteger();
-    int counter = MPLINE.get("IBCHNO").toString().trim().toInteger();
-    MPLINE.set("IBLMDT", currentDate);
-    MPLINE.set("IBCHNO", counter +1);
-    MPLINE.set("IBCHID", program.getUser());
-    MPLINE.set("IBPUSL", "20")
-    MPLINE.set("IBUCA1", "Y");  /*SET APPROVAL FLAG TO Y - HAS BEEN PREVIOUSLY APROVED*/
-    MPLINE.update();
-	}
-	
 
-  Closure<?> callbackGetPOLine = { Map<String,String> response -> 
-    itno = response.ITNO.trim();
-    suno = response.SUNO.trim();
-    orqo = response.ORQA.trim();
-    orqa = response.ORQA.trim();
-    pust = response.PUST.trim();
-    pusl = response.PUSL.trim();
-    if(!isStringNullOrEmpty(cppr)){
-      String cPPO = response.CPPR.trim();
-      if(!isStringNullOrEmpty(cPPO) && cPPO.toDouble() != cppr.toDouble()){
-        cppo = cPPO;  
-      }
-    }
-    if(!isStringNullOrEmpty(tel1)){
-      String tELO = response.TEL1.trim();
-      if(!isStringNullOrEmpty(tELO) && tELO.trim() != tel1.trim()){
-        telo = tELO;  
-      }
-    }
-    if(!isStringNullOrEmpty(codt)){
-      String cODT = response.CODT.trim();
-      if(!isStringNullOrEmpty(cODT) && cODT.toInteger() != codt.toInteger()){
-        codo = response.CODT.trim();
-      }
-    }
-  }
 
 	/**********
 	* validateInput - Validate all the input fields
