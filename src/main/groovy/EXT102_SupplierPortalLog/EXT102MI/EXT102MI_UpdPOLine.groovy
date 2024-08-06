@@ -48,7 +48,6 @@ public class UpdPOLine extends ExtendM3Transaction {
 
 	private final MIAPI mi;
 	private final DatabaseAPI database;
-	private final LoggerAPI logger;
 	private final ProgramAPI program;
 	private final MICallerAPI miCaller;
 	private final IonAPI ion;
@@ -84,10 +83,9 @@ public class UpdPOLine extends ExtendM3Transaction {
 
 	private boolean isDateParsed;
 
-	public UpdPOLine(MIAPI mi, DatabaseAPI database, LoggerAPI logger, ProgramAPI program, MICallerAPI miCaller, IonAPI ion) {
+	public UpdPOLine(MIAPI mi, DatabaseAPI database,  ProgramAPI program, MICallerAPI miCaller, IonAPI ion) {
 		this.mi = mi;
 		this.database = database;
-		this.logger = logger;
 		this.program = program;
 		this.miCaller = miCaller; 
 		this.ion = ion; 
@@ -213,7 +211,6 @@ public class UpdPOLine extends ExtendM3Transaction {
     }
     Map<String,String> headers = ["Accept": "application/json"];
     IonResponse response = ion.get(url, headers, params);
-    logger.info("response ${response}");
     if(response.getError()){
       mi.error(response.getErrorMessage());
       return;
