@@ -39,7 +39,6 @@
 * WKF009            20230927  KVERCO      Supplier invoice variance recoding
 * WKF009            20240308  KVERCO      Set accounting date according to open period + improve logging and error codes
 * WKF009            20240528  KVERCO      Check for vouchers where LstVoucherLines returns nothing
-* WKF009            20240731  KVERCO      Use CUAM instead ACAM when call api APS450MI/AddLineRecode
 */
  
 /**
@@ -105,7 +104,7 @@ public class ProcessVariance extends ExtendM3Transaction {
     String jrno = EXTVAR.get("EXJRNO").toString().trim();
     String jsno = EXTVAR.get("EXJSNO").toString().trim();
     
-    DBAction queryFGLEDG = database.table("FGLEDG").index("00").selection("EGDIVI", "EGYEA4", "EGJRNO", "EGJSNO", "EGVONO", "EGVSER", "EGAIT1", "EGAIT2", "EGAIT3", "EGAIT4", "EGAIT5", "EGAIT6", "EGAIT7", "EGACAM", "EGCUAM","EGACQT", "EGVTCD", "EGACDT", "EGVTXT").build();
+    DBAction queryFGLEDG = database.table("FGLEDG").index("00").selection("EGDIVI", "EGYEA4", "EGJRNO", "EGJSNO", "EGVONO", "EGVSER", "EGAIT1", "EGAIT2", "EGAIT3", "EGAIT4", "EGAIT5", "EGAIT6", "EGAIT7", "EGACAM", "EGACQT", "EGVTCD", "EGACDT", "EGVTXT").build();
     DBContainer FGLEDG = queryFGLEDG.getContainer();
     FGLEDG.set("EGCONO", XXCONO);
     FGLEDG.set("EGDIVI", divi);
@@ -161,7 +160,6 @@ public class ProcessVariance extends ExtendM3Transaction {
     String ait6 = FGLEDG.get("EGAIT6").toString().trim();
     String ait7 = FGLEDG.get("EGAIT7").toString().trim();
     String acam = FGLEDG.get("EGACAM").toString().trim();
-    String cuam = FGLEDG.get("EGCUAM").toString().trim();
     String acqt = FGLEDG.get("EGACQT").toString().trim();
     String vtcd = FGLEDG.get("EGVTCD").toString().trim();
     String acdt = FGLEDG.get("EGACDT").toString().trim();
@@ -228,7 +226,6 @@ public class ProcessVariance extends ExtendM3Transaction {
     expression = expression.and(expression.eq("F9AIT6", ait6));
     expression = expression.and(expression.eq("F9AIT7", ait7));
     expression = expression.and(expression.eq("F9ACAM", acam));
-    expression = expression.and(expression.eq("F9CUAM", cuam));
     
     //Check for an accounting line on a non-Average Cost Variance
     DBAction queryFGINAE = database.table("FGINAE").index("00").matching(expression).selection("F9PUNO", "F9PNLI", "F9PNLS").build();
@@ -392,8 +389,8 @@ public class ProcessVariance extends ExtendM3Transaction {
       } else {
         vtxt = formatFixedLen(vtxt, 39) + "X";
       }
-      createAPS450MILine(divi, inbn, (cuam.toDouble() * (-1)).toString(), vtcd, (acqt.toDouble() * (-1)).toString(), ait1, ait2, ait3, ait4, ait5, ait6, ait7, vtxt);
-      createAPS450MILine(divi, inbn, cuam, vtcd, acqt, ait1CACCST, ait2CACCST, ait3CACCST, ait4CACCST, ait5CACCST, ait6CACCST, ait7CACCST, vtxt);
+      createAPS450MILine(divi, inbn, (acam.toDouble() * (-1)).toString(), vtcd, (acqt.toDouble() * (-1)).toString(), ait1, ait2, ait3, ait4, ait5, ait6, ait7, vtxt);
+      createAPS450MILine(divi, inbn, acam, vtcd, acqt, ait1CACCST, ait2CACCST, ait3CACCST, ait4CACCST, ait5CACCST, ait6CACCST, ait7CACCST, vtxt);
       validateAPS455MIValidByBatchNo(divi, inbn);
       updateProcessFlag(divi, yea4, jrno, jsno, "1");
       logger.debug("Successful recode for PO line-"  + puno + "/" + pnli + "/" + pnls + " and division-" + divi + ", supplier-" + suno + ", invoice-" + sino);
@@ -729,7 +726,7 @@ public class ProcessVariance extends ExtendM3Transaction {
     String AIT7 = "";
     
       String responseBody = content.toString();
-      int indexStart = responseBody.indexOf("AccouacamntingDimension1>");
+      int indexStart = responseBody.indexOf("AccountingDimension1>");
       int indexEnd = 0;
       if (indexStart !=-1){
          AIT1=responseBody.substring(indexStart+20);
