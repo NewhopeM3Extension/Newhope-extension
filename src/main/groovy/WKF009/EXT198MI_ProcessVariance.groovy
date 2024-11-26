@@ -40,6 +40,7 @@
 * WKF009            20240308  KVERCO      Set accounting date according to open period + improve logging and error codes
 * WKF009            20240528  KVERCO      Check for vouchers where LstVoucherLines returns nothing
 * WKF009            20240731  KVERCO      Use CUAM instead ACAM when call api APS450MI/AddLineRecode
+* WKF009            20240925  KVERCO      Use correct YEA4 when invoice in prior year to recode line 
 */
  
 /**
@@ -145,6 +146,7 @@ public class ProcessVariance extends ExtendM3Transaction {
   void recodingVariance(DBContainer FGLEDG) {  
     String jrnoFPLEDG = "";
     String jsnoFPLEDG = "";
+    String yea4FPLEDG = FGLEDG.get("EGYEA4").toString().trim();
     
     String divi = FGLEDG.get("EGDIVI").toString().trim();
     String yea4 = FGLEDG.get("EGYEA4").toString().trim();
@@ -179,11 +181,18 @@ public class ProcessVariance extends ExtendM3Transaction {
     }
 
     miCaller.call("GLS200MI", "LstVoucherLines", params, GLS200MIcallback);
+
+    if (jrnoFPLEDG.isEmpty()) {
+      //yea4FPLEDG = (yea4.toDouble() -1).toString().trim();
+      yea4FPLEDG = String.valueOf((int) yea4.toDouble() - 1);
+      params = ["DIVI":divi, "YEA4":yea4FPLEDG, "VSER":"", "VONO":vono];
+      miCaller.call("GLS200MI", "LstVoucherLines", params, GLS200MIcallback);
+    }
     
     if (jrnoFPLEDG.isEmpty()) {
       PROC = "";
       updateProcessFlag(divi, yea4, jrno, jsno, "7");
-      logger.debug("No GLS200MI rows found for division-" + divi + ", year-" + yea4 + ", journal-" + jrno + ", journal seq-" + jsno);
+      logger.debug("No GLS200MI rows found for division-" + divi + ", year-" + yea4 + ", journal-" + jrno + ", journal seq-" + jsno + " or yea4-" + yea4FPLEDG);
       return;
     }
     
@@ -191,7 +200,7 @@ public class ProcessVariance extends ExtendM3Transaction {
     DBContainer FPLEDG = queryFPLEDG.getContainer();
     FPLEDG.set("EPCONO", XXCONO);
     FPLEDG.set("EPDIVI", divi);
-    FPLEDG.set("EPYEA4", yea4.toInteger());
+    FPLEDG.set("EPYEA4", yea4FPLEDG.toInteger());
     FPLEDG.set("EPJRNO", jrnoFPLEDG.toInteger());
     FPLEDG.set("EPJSNO", jsnoFPLEDG.toInteger());
     
@@ -385,20 +394,36 @@ public class ProcessVariance extends ExtendM3Transaction {
       logger.debug("ait1CACCST=" + ait1CACCST + " ait2CACCST=" + ait2CACCST);
     }
 
-    String inbn = createAPS450MIHeader(divi, yea4, vser, vono, getAccountingDate(divi,acdt));
+    String apiError = "";
+    String trno = "";
+    String inbn = createAPS450MIHeader(divi, yea4FPLEDG, vser, vono, getAccountingDate(divi,acdt));
     if (inbn != null && !inbn.isEmpty()) {
       if (vtxt.length() == 40) {
-        vtxt = vtxt.substring(0, 38) + "X";
+        vtxt = vtxt.substring(0, 39) + "X";
       } else {
         vtxt = formatFixedLen(vtxt, 39) + "X";
       }
-      createAPS450MILine(divi, inbn, (cuam.toDouble() * (-1)).toString(), vtcd, (acqt.toDouble() * (-1)).toString(), ait1, ait2, ait3, ait4, ait5, ait6, ait7, vtxt);
-      createAPS450MILine(divi, inbn, cuam, vtcd, acqt, ait1CACCST, ait2CACCST, ait3CACCST, ait4CACCST, ait5CACCST, ait6CACCST, ait7CACCST, vtxt);
+
+      trno = createAPS450MILine(divi, inbn, (cuam.toDouble() * (-1)).toString(), vtcd, (acqt.toDouble() * (-1)).toString(), ait1, ait2, ait3, ait4, ait5, ait6, ait7, vtxt);
+      if ((trno == null) || trno.isEmpty()) {
+        apiError = "Failed on APS450 API"
+        logger.debug("trno-"  + trno + " apiError-" + apiError);
+      }
+      trno = createAPS450MILine(divi, inbn, cuam, vtcd, acqt, ait1CACCST, ait2CACCST, ait3CACCST, ait4CACCST, ait5CACCST, ait6CACCST, ait7CACCST, vtxt);
+      if ((trno == null) || trno.isEmpty()) {
+        apiError = "Failed on APS450 API"
+        logger.debug("trno-"  + trno + " apiError-" + apiError);
+       }
       validateAPS455MIValidByBatchNo(divi, inbn);
-      updateProcessFlag(divi, yea4, jrno, jsno, "1");
-      logger.debug("Successful recode for PO line-"  + puno + "/" + pnli + "/" + pnls + " and division-" + divi + ", supplier-" + suno + ", invoice-" + sino);
+      if (apiError != null && !apiError.isEmpty()) {
+       updateProcessFlag(divi, yea4, jrno, jsno, "9");
+       logger.debug("Failed API recode for PO line-"  + puno + "/" + pnli + "/" + pnls + " and division-" + divi + ", supplier-" + suno + ", invoice-" + sino);
+      } else {
+       updateProcessFlag(divi, yea4, jrno, jsno, "1");
+       logger.debug("Successful recode for PO line-"  + puno + "/" + pnli + "/" + pnls + " and division-" + divi + ", supplier-" + suno + ", invoice-" + sino);
+      }
     } else {
-      updateProcessFlag(divi, yea4, jrno, jsno, "2");
+      updateProcessFlag(divi, yea4, jrno, jsno, "9");
       logger.debug("APS450MI AddHeadRecode failed for PO line-"  + puno + "/" + pnli + "/" + pnls + " and division-" + divi + ", supplier-" + suno + ", invoice-" + sino);
     }
   }
@@ -438,17 +463,20 @@ public class ProcessVariance extends ExtendM3Transaction {
    * createAPS450MILine - executing APS450MI.AddLineRecode
    *
   */
-  void createAPS450MILine(String divi, String inbn, String nlam, String vtcd, String acqt, String ait1, String ait2, String ait3, String ait4, String ait5, String ait6, String ait7, String vtxt) {
+  String createAPS450MILine(String divi, String inbn, String nlam, String vtcd, String acqt, String ait1, String ait2, String ait3, String ait4, String ait5, String ait6, String ait7, String vtxt) {
     logger.debug("Call APS450MI.AddLineRecode...");
     
-    
+    String trno = "";
     Map<String, String> params = [ "DIVI": divi, "INBN": inbn, "NLAM": nlam, "VTCD": vtcd, "ACQT": acqt, "AIT1": ait1, "AIT2": ait2, "AIT3": ait3, "AIT4": ait4, "AIT5": ait5, "AIT6": ait6, "AIT7": ait7, "VTXT": vtxt]; 
     Closure<?> callback = {
     Map<String, String> response ->
-      
+      trno = response.TRNO;
+      logger.debug("TRNO=" + trno);      
     }
     
     miCaller.call("APS450MI","AddLineRecode", params, callback);
+
+    return trno;
   }
   /**
    * formatFixedLength
