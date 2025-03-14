@@ -56,7 +56,7 @@
     private List lstCSYTAB;
    
  /*
-  * Get Purchase Authorisation extension table row
+  * Get Supplier Group
  */
   public GetSUCL(MIAPI mi, DatabaseAPI database, MICallerAPI miCaller, LoggerAPI logger, ProgramAPI program, IonAPI ion) {
     this.mi = mi;
