@@ -21,7 +21,7 @@
  ***************************************************************
  */
 
- import groovy.lang.Closure
+ import groovy.lang.Closure;
  import java.time.LocalDate;
  import java.time.LocalDateTime;
  import java.time.format.DateTimeFormatter;
@@ -78,11 +78,7 @@ public class GetSUCL extends ExtendM3Transaction {
     container.set("CTTX40", tx40.trim());
     query.readAll(container, 4, 1, listCSYTAB);
 
-    if (stky != null) {
-      mi.outData.put("STKY", stky);
-      mi.outData.put("TX40", tx40);
-      mi.write();
-    } else {
+    if (stky == null) {
       mi.error("Supplier Group does not exist.");
       return;
     }
@@ -92,6 +88,9 @@ public class GetSUCL extends ExtendM3Transaction {
   Closure<?> listCSYTAB = { DBContainer contCSYTAB ->
     stky = contCSYTAB.get("CTSTKY").toString().trim();
     tx40 = contCSYTAB.get("CTTX40").toString().trim();
+    mi.outData.put("STKY", stky);
+    mi.outData.put("TX40", tx40);
+    mi.write();
   }  
   
 }
