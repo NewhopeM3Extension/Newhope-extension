@@ -108,32 +108,63 @@
       mi.error("Workflow name must be entered");
       return;
     }
-
     // validate input fields for Supplier Invoice and Purchase Order Line
-    if (puno.isEmpty()) {
-        mi.error("PO number must be entered");
-        return;
+    if (wfnm.equals("SupplierInvoiceLine_Approval_Non_Matched") || wfnm.equals("SupplierInvoiceLine_POReceipt") || wfnm.equals("POLine_Authorisation")) {
+		   if (puno.isEmpty()) {
+          mi.error("PO number must be entered");
+          return;
+       }
+		   if (pnli.isEmpty()) {
+          mi.error("PO line number must be entered");
+          return;
+       }
+		   if (pnls.isEmpty()) {
+          mi.error("PO sub line no must be entered");
+          return;
+		   }      
     }
-    if (pnli.isEmpty()) {
-        mi.error("PO line number must be entered");
-        return;
-    }
-    if (pnls.isEmpty()) {
-        mi.error("PO sub line no must be entered");
-        return;
-    }      
     // validate input fields for Supplier Invoice 
-    if (suno.isEmpty()) {
-        mi.error("Supplier no must be entered");
-        return;
+    if (wfnm.equals("SupplierInvoiceLine_Approval_Non_Matched") || wfnm.equals("SupplierInvoiceLine_POReceipt") || wfnm.equals("Invoice_No_PO_Approval")) {
+       if (suno.isEmpty()) {
+          mi.error("Supplier no must be entered");
+          return;
+        }
+		    if (sino.isEmpty()) {
+          mi.error("Supplier Invoice no must be entered");
+          return;
+        }
+		    if (inyr.isEmpty()) {
+          mi.error("Invoice year must be entered");
+          return;
+        }
     }
-    if (sino.isEmpty()) {
-        mi.error("Supplier Invoice no must be entered");
-        return;
-    }
+    if (wfnm.equals("PORequisiton_Authorisation")) {
+		   if (puno.isEmpty()) {
+          mi.error("PR no must be entered");
+          return;
+       }
+		   if (pnli.isEmpty()) {
+          mi.error("PR sub line no must be entered");
+          return;
+       }
+		   if (pnls.isEmpty()) {
+          mi.error("PR sub line no 2 must be entered");
+          return;
+       }
+    }    
 	  if (inyr.isEmpty()) {
-        mi.error("Invoice year must be entered");
-        return;
+       inyr = "0";
+    }
+    // set inyr, repn to 0 for POLine_Authorisation
+    if (wfnm.equals("POLine_Authorisation")) {
+       inyr = "0";
+       repn = "0";
+    }
+    // set pnli, pnls to 0 for Invoice No PO Invoice_No_PO_Approval
+    if (wfnm.equals("Invoice_No_PO_Approval")) {
+       pnli = "0";
+       pnls = "0";
+       repn = "0";
     }
     if (repn.isEmpty()) {
       repn = "0";
@@ -159,52 +190,6 @@
     if (lstEXTWAT.size() > 0) {
       for (int i=0;i<lstEXTWAT.size();i++) {
         Map<String, String> record = (Map<String, String>) lstEXTWAT[i];
-        mi.outData.put("CONO", record.CONO.trim());
-        mi.outData.put("DIVI", record.DIVI.trim());
-        mi.outData.put("WFNM", record.WFNM);
-        mi.outData.put("PUNO", record.PUNO);
-        mi.outData.put("PNLI", record.PNLI);
-        mi.outData.put("PNLS", record.PNLS);
-        mi.outData.put("SUNO", record.SUNO);
-        mi.outData.put("SINO", record.SINO);
-        mi.outData.put("INYR", record.INYR);
-        mi.outData.put("REPN", record.REPN);
-        mi.outData.put("APPR", record.APPR);
-        mi.outData.put("ACTA", record.ACTA);
-        mi.outData.put("SUNM", record.SUNM);
-        mi.outData.put("ITNO", record.ITNO);
-        mi.outData.put("PURC", record.PURC);
-        mi.outData.put("PUPR", record.PUPR);
-        mi.outData.put("ORQA", record.ORQA);
-        mi.outData.put("PUPR", record.PUPR);
-        mi.outData.put("CUCD", record.CUCD);
-        mi.outData.put("LNAM", record.LNAM);
-        mi.outData.put("LAMT", record.LAMT);
-        mi.outData.put("APRO", record.APRO);
-        mi.outData.put("APLI", record.APLI);
-        mi.outData.put("PURC", record.PURC);
-        mi.outData.put("AIT1", record.AIT1);
-        mi.outData.put("AIT2", record.AIT2);
-        mi.outData.put("AIT3", record.AIT3);
-        mi.outData.put("AIT4", record.AIT4);
-        mi.outData.put("AIT5", record.AIT5);
-        mi.outData.put("AIT6", record.AIT6);
-        mi.outData.put("AIT7", record.AIT7);
-        mi.outData.put("RORN", record.RORN);
-        mi.outData.put("SITE", record.SITE);
-        mi.outData.put("CPPR", record.CPPR);
-        mi.outData.put("CAMT", record.CAMT);
-        mi.outData.put("CLAM", record.CLAM);
-        mi.outData.put("CRID", record.CRID);
-        mi.outData.put("RESP", record.RESP);
-        mi.outData.put("LMTS", record.LMTS);
-        mi.outData.put("RGDT", record.RGDT);
-        mi.outData.put("RGTM", record.RGTM);
-        mi.outData.put("LMDT", record.LMDT);
-        mi.outData.put("CHNO", record.CHNO);
-        mi.outData.put("CHID", record.CHID);
-
-        mi.write();
       }
     } else {
       mi.error("Record does not exist in EXTWAT.");
@@ -257,12 +242,51 @@
     String chid = contEXTWAT.get("EXCHID").toString();
     String chno = contEXTWAT.get("EXCHNO").toString();
 
-    if (acta.equals(cacta) || acta == null) {
-        Map<String,String> map = [CONO: cono, DIVI: divi, WFNM: wfnm, PUNO: puno, PNLI: pnli, PNLS: pnls, SUNO: suno, SINO: sino, INYR: inyr, REPN: repn, LMTS: lmts,
-                                  APPR: appr, ACTA: cacta, SUNM: sunm, ITNO: itno, PURC: purc, ORQA: orqa, PUPR: pupr, CUCD: cucd, LNAM: lnam, LAMT: lamt, APRO: apro, APLI: apli, PURC: purc,
-                                  AIT1: ait1, AIT2: ait2, AIT3: ait3, AIT4: ait4, AIT5: ait5, AIT6: ait6, AIT7: ait7, RORN: rorn, SITE: site,
-                                  CPPR: cppr, CAMT: camt, CLAM: clam, CRID: crid, RESP: resp, RGDT: rgdt, RGTM: rgtm, LMDT: lmdt, CHID: chid, CHNO: chno];
-        lstEXTWAT.add(map);  
+    if (acta.equals(cacta) || acta == null || acta.isEmpty()) {
+        mi.outData.put("CONO", cono);
+        mi.outData.put("DIVI", divi);
+        mi.outData.put("WFNM", wfnm);
+        mi.outData.put("PUNO", puno);
+        mi.outData.put("PNLI", pnli);
+        mi.outData.put("PNLS", pnls);
+        mi.outData.put("SUNO", suno);
+        mi.outData.put("SINO", sino);
+        mi.outData.put("INYR", inyr);
+        mi.outData.put("REPN", repn);
+        mi.outData.put("APPR", appr);
+        mi.outData.put("ACTA", cacta);
+        mi.outData.put("SUNM", sunm);
+        mi.outData.put("ITNO", itno);
+        mi.outData.put("PURC", purc);
+        mi.outData.put("ORQA", orqa);
+        mi.outData.put("PUPR", pupr);
+        mi.outData.put("CUCD", cucd);
+        mi.outData.put("LNAM", lnam);
+        mi.outData.put("LAMT", lamt);
+        mi.outData.put("APRO", apro);
+        mi.outData.put("APLI", apli);
+        mi.outData.put("AIT1", ait1);
+        mi.outData.put("AIT2", ait2);
+        mi.outData.put("AIT3", ait3);
+        mi.outData.put("AIT4", ait4);
+        mi.outData.put("AIT5", ait5);
+        mi.outData.put("AIT6", ait6);
+        mi.outData.put("AIT7", ait7);
+        mi.outData.put("RORN", rorn);
+        mi.outData.put("SITE", site);
+        mi.outData.put("CPPR", cppr);
+        mi.outData.put("CAMT", camt);
+        mi.outData.put("CLAM", clam);
+        mi.outData.put("CRID", crid);
+        mi.outData.put("RESP", resp);
+        mi.outData.put("LMTS", lmts);
+        mi.outData.put("RGDT", rgdt);
+        mi.outData.put("RGTM", rgtm);
+        mi.outData.put("LMDT", lmdt);
+        mi.outData.put("CHNO", chno);
+        mi.outData.put("CHID", chid);
+
+        mi.write();
     }
     
   }
