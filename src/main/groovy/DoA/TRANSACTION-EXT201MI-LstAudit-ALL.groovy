@@ -63,7 +63,6 @@
   
   private int XXCONO;
   
-  private List lstEXTWAT;  
   private String ivqa;
 
  /*
@@ -101,8 +100,7 @@
   	acta = mi.inData.get("ACTA") == null ? '' : mi.inData.get("ACTA").trim();
 
     XXCONO = (Integer)program.LDAZD.CONO;
-    lstEXTWAT = new ArrayList();
-    
+
     // Validate input fields for workflow 
 		if (wfnm.isEmpty()) {
       mi.error("Workflow name must be entered");
@@ -171,8 +169,8 @@
     }
 
     DBAction queryEXTWAT = database.table("EXTWAT").index("00").selection("EXCONO", "EXDIVI", "EXWFNM", "EXPUNO", "EXPNLI", "EXPNLS", "EXSUNO", "EXSINO", "EXINYR", "EXREPN", "EXLMTS",
-                                                                          "EXACTA", "EXAPPR", "EXSUNM", "EXITNO", "EXPUPR", "EXORQA", "EXCUCD", "EXLNAM", "EXLAMT", "EXAPRO", "EXAPLI", "EXPURC",
-                                                                          "EXAIT1", "EXAIT2", "EXAIT3", "EXAIT4", "EXAIT5", "EXAIT6", "EXAIT7", "EXCPPR", "EXCAMT", "EXCLAM", "EXCRID", "EXRESP",
+                                                                          "EXACTA", "EXAPPR", "EXSUNM", "EXPUPR", "EXCUCD", "EXITNO", "EXLNAM", "EXLAMT", "EXORQA", "EXPURC", "EXAPRO", "EXAPLI",
+                                                                          "EXAIT1", "EXAIT2", "EXAIT3", "EXAIT4", "EXAIT5", "EXAIT6", "EXAIT7", "EXRORN", "EXSITE", "EXCPPR", "EXCAMT", "EXCLAM", "EXCRID", "EXRESP",
                                                                           "EXRGDT", "EXRGTM", "EXLMDT", "EXCHNO", "EXCHID").build();
     DBContainer containerEXTWAT = queryEXTWAT.getContainer();
     containerEXTWAT.set("EXCONO", XXCONO);
@@ -186,12 +184,9 @@
     containerEXTWAT.set("EXINYR", inyr.toInteger());
     containerEXTWAT.set("EXREPN", repn.toInteger());
 
-    queryEXTWAT.readAll(containerEXTWAT, 10, 999, listEXTWAT);
-    if (lstEXTWAT.size() > 0) {
-      for (int i=0;i<lstEXTWAT.size();i++) {
-        Map<String, String> record = (Map<String, String>) lstEXTWAT[i];
-      }
-    } else {
+    int noOfRecords = 0;
+    noOfRecords = queryEXTWAT.readAll(containerEXTWAT, 10, 999, listEXTWAT);
+    if (noOfRecords == 0) {
       mi.error("Record does not exist in EXTWAT.");
       return;
     }
@@ -209,16 +204,17 @@
     String sino = contEXTWAT.get("EXSINO").toString();
     String inyr = contEXTWAT.get("EXINYR").toString();
     String repn = contEXTWAT.get("EXREPN").toString();
-    String appr = contEXTWAT.get("EXAPPR").toString();
+    String lmts = contEXTWAT.get("EXLMTS").toString();
     String cacta = contEXTWAT.get("EXACTA").toString().trim();
+    String appr = contEXTWAT.get("EXAPPR").toString();
     String sunm = contEXTWAT.get("EXSUNM").toString();
-    String itno = contEXTWAT.get("EXITNO").toString();
-    String purc = contEXTWAT.get("EXPURC").toString();
-    String orqa = contEXTWAT.get("EXORQA").toString();
     String pupr = contEXTWAT.get("EXPUPR").toString();
     String cucd = contEXTWAT.get("EXCUCD").toString();
-    String lamt = contEXTWAT.get("EXLAMT").toString();
+    String itno = contEXTWAT.get("EXITNO").toString();
     String lnam = contEXTWAT.get("EXLNAM").toString();
+    String lamt = contEXTWAT.get("EXLAMT").toString();
+    String orqa = contEXTWAT.get("EXORQA").toString();
+    String purc = contEXTWAT.get("EXPURC").toString();
     String apro = contEXTWAT.get("EXAPRO").toString();
     String apli = contEXTWAT.get("EXAPLI").toString();
     String ait1 = contEXTWAT.get("EXAIT1").toString();
@@ -235,12 +231,11 @@
     String clam = contEXTWAT.get("EXCLAM").toString();
     String crid = contEXTWAT.get("EXCRID").toString();
     String resp = contEXTWAT.get("EXRESP").toString();
-    String lmts = contEXTWAT.get("EXLMTS").toString();
     String rgdt = contEXTWAT.get("EXRGDT").toString();
     String rgtm = contEXTWAT.get("EXRGTM").toString();
     String lmdt = contEXTWAT.get("EXLMDT").toString();
-    String chid = contEXTWAT.get("EXCHID").toString();
     String chno = contEXTWAT.get("EXCHNO").toString();
+    String chid = contEXTWAT.get("EXCHID").toString();
 
     if (acta.equals(cacta) || acta == null || acta.isEmpty()) {
         mi.outData.put("CONO", cono);
@@ -253,16 +248,17 @@
         mi.outData.put("SINO", sino);
         mi.outData.put("INYR", inyr);
         mi.outData.put("REPN", repn);
-        mi.outData.put("APPR", appr);
+        mi.outData.put("LMTS", lmts);
         mi.outData.put("ACTA", cacta);
+        mi.outData.put("APPR", appr);
         mi.outData.put("SUNM", sunm);
-        mi.outData.put("ITNO", itno);
-        mi.outData.put("PURC", purc);
-        mi.outData.put("ORQA", orqa);
         mi.outData.put("PUPR", pupr);
         mi.outData.put("CUCD", cucd);
+        mi.outData.put("ITNO", itno);
         mi.outData.put("LNAM", lnam);
         mi.outData.put("LAMT", lamt);
+        mi.outData.put("ORQA", orqa);
+        mi.outData.put("PURC", purc);
         mi.outData.put("APRO", apro);
         mi.outData.put("APLI", apli);
         mi.outData.put("AIT1", ait1);
@@ -279,7 +275,6 @@
         mi.outData.put("CLAM", clam);
         mi.outData.put("CRID", crid);
         mi.outData.put("RESP", resp);
-        mi.outData.put("LMTS", lmts);
         mi.outData.put("RGDT", rgdt);
         mi.outData.put("RGTM", rgtm);
         mi.outData.put("LMDT", lmdt);
